@@ -195,7 +195,6 @@
     color: var(--error);
 }
 
-
 .dashboard-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
@@ -262,7 +261,7 @@
     color: var(--error);
 }
 
-
+/* Applications List */
 .applications-list {
     display: flex;
     flex-direction: column;
@@ -413,7 +412,7 @@
     font-weight: 600;
 }
 
-
+/* System Metrics */
 .system-metrics {
     display: flex;
     flex-direction: column;
@@ -488,7 +487,6 @@
     font-weight: 600;
     text-align: center;
 }
-
 
 .activity-log {
     max-height: 400px;

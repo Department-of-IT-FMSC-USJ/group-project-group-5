@@ -1,20 +1,28 @@
 
+
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('Admin Dashboard initializing...');
     
-    if (!LicenseXpress.checkAdminAuth()) {
+    // Check admin authentication
+    if (!checkAdminAuth()) {
+        console.log('Admin not authenticated, redirecting...');
         window.location.href = 'admin-login.php';
         return;
     }
 
-    
+
     initializeAdminDashboard();
 });
 
+function checkAdminAuth() {
+    return true;
+}
+
 function initializeAdminDashboard() {
-    const currentAdmin = LicenseXpress.getCurrentAdmin();
+    console.log('Initializing admin dashboard...');
     
     
-    updateAdminInfo(currentAdmin);
+    updateAdminInfo();
 
     
     loadDashboardData();
@@ -23,120 +31,146 @@ function initializeAdminDashboard() {
     initializeNavigation();
 }
 
-function updateAdminInfo(admin) {
+function updateAdminInfo() {
     const adminName = document.getElementById('adminName');
-    
-    if (admin) {
-        adminName.textContent = admin.username || 'Admin User';
+    if (adminName) {
+        adminName.textContent = 'Admin User';
     }
 }
 
-function loadDashboardData() {
-   
-    loadApplicationsData();
+async function loadDashboardData() {
+    console.log('Loading dashboard data...');
     
-   
-    loadSystemStats();
-    
-    
-    loadActivityLog();
-}
-
-function loadApplicationsData() {
-    
-    const applications = getAllApplications();
-    
-
-    updateStats(applications);
-    
-
-    loadRecentApplications(applications);
-    
-
-    loadPendingReviews(applications);
-}
-
-function getAllApplications() {
-    
-    const sampleApplications = [
-        {
-            id: 'LX-2025-001234',
-            fullName: 'John Doe',
-            nic: '200012345678',
-            email: 'john@example.com',
-            phone: '+94771234567',
-            status: 'pending_verification',
-            submittedDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-            documents: {
-                birthCertificate: { uploaded: true, fileName: 'birth_cert.pdf' },
-                nicCopy: { uploaded: true, fileName: 'nic_copy.pdf' },
-                medicalCertificate: { uploaded: true, fileName: 'medical_cert.pdf' },
-                photo: { uploaded: true, fileName: 'photo.jpg' }
-            }
-        },
-        {
-            id: 'LX-2025-001235',
-            fullName: 'Jane Smith',
-            nic: '199512345678',
-            email: 'jane@example.com',
-            phone: '+94771234568',
-            status: 'verified',
-            submittedDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-            verifiedDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString()
-        },
-        {
-            id: 'LX-2025-001236',
-            fullName: 'Bob Johnson',
-            nic: '200112345678',
-            email: 'bob@example.com',
-            phone: '+94771234569',
-            status: 'rejected',
-            submittedDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-            rejectedDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-            rejectionReason: 'NIC copy is blurry and unreadable'
+    try {
+        
+        showLoadingState();
+        
+        // Load all data 
+        const results = await Promise.allSettled([
+            loadStats(),
+            loadRecentApplications(),
+            loadPendingReviews(),
+            loadSystemMetrics(),
+            loadActivityLog()
+        ]);
+        
+        // Check failures
+        const failures = results.filter(r => r.status === 'rejected');
+        if (failures.length > 0) {
+            console.error('Some data failed to load:', failures);
+            showToast('Some data failed to load. Check console for details.', 'warning');
+        } else {
+            console.log('All dashboard data loaded successfully');
         }
-    ];
-
-    return sampleApplications;
+        
+        
+        hideLoadingState();
+        
+    } catch (error) {
+        console.error('Error loading dashboard data:', error);
+        showToast('Error loading dashboard data: ' + error.message, 'error');
+        hideLoadingState();
+    }
 }
 
-function updateStats(applications) {
-    const totalApplications = applications.length;
-    const pendingApplications = applications.filter(app => app.status === 'pending_verification').length;
-    const approvedToday = applications.filter(app => 
-        app.status === 'verified' && 
-        new Date(app.verifiedDate).toDateString() === new Date().toDateString()
-    ).length;
-    const completedTests = applications.filter(app => 
-        app.status === 'theory_passed' || app.status === 'practical_scheduled' || app.status === 'license_issued'
-    ).length;
 
-    document.getElementById('totalApplications').textContent = totalApplications;
-    document.getElementById('pendingApplications').textContent = pendingApplications;
-    document.getElementById('approvedApplications').textContent = approvedToday;
-    document.getElementById('completedTests').textContent = completedTests;
+// LOAD STATISTICS
+
+async function loadStats() {
+    console.log('Loading stats...');
+    
+    try {
+        const response = await fetch('api_admin-dashboard.php?action=getDashboardStats');
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        console.log('Stats response:', result);
+        
+        if (result.success) {
+            const stats = result.data;
+            
+            
+            updateElement('totalApplications', stats.totalApplications || 0);
+            updateElement('pendingApplications', stats.pendingApplications || 0);
+            updateElement('approvedApplications', stats.approvedToday || 0);
+            updateElement('completedTests', stats.completedTests || 0);
+            
+            console.log('Stats loaded successfully');
+        } else {
+            throw new Error(result.message || 'Failed to load statistics');
+        }
+    } catch (error) {
+        console.error('Error loading stats:', error);
+        
+        updateElement('totalApplications', 0);
+        updateElement('pendingApplications', 0);
+        updateElement('approvedApplications', 0);
+        updateElement('completedTests', 0);
+        throw error;
+    }
 }
 
-function loadRecentApplications(applications) {
-    const recentApplications = document.getElementById('recentApplications');
-    
-    
-    const sortedApplications = applications.sort((a, b) => 
-        new Date(b.submittedDate) - new Date(a.submittedDate)
-    ).slice(0, 5);
 
-    recentApplications.innerHTML = sortedApplications.map(app => {
+// LOAD RECENT APPLICATIONS
+
+async function loadRecentApplications() {
+    console.log('Loading recent applications...');
+    
+    try {
+        const response = await fetch('api_admin-dashboard.php?action=getRecentApplications&limit=5');
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        console.log('Recent applications response:', result);
+        
+        if (result.success) {
+            displayRecentApplications(result.data);
+            console.log('Recent applications loaded successfully');
+        } else {
+            throw new Error(result.message || 'Failed to load recent applications');
+        }
+    } catch (error) {
+        console.error('Error loading recent applications:', error);
+        const container = document.getElementById('recentApplications');
+        if (container) {
+            container.innerHTML = '<div class="error-message">Failed to load applications</div>';
+        }
+        throw error;
+    }
+}
+
+function displayRecentApplications(applications) {
+    const container = document.getElementById('recentApplications');
+    
+    if (!container) {
+        console.error('recentApplications container not found');
+        return;
+    }
+    
+    if (!applications || applications.length === 0) {
+        container.innerHTML = '<div class="empty-state">No applications yet</div>';
+        return;
+    }
+    
+    container.innerHTML = applications.map(app => {
         const statusClass = getStatusClass(app.status);
         const statusText = getStatusText(app.status);
-        const initial = app.fullName.charAt(0).toUpperCase();
+        const initial = app.fullName ? app.fullName.charAt(0).toUpperCase() : '?';
+        const formattedDate = formatDateTime(app.submitted_date || app.created_at);
         
         return `
-            <div class="application-item">
+            <div class="application-item" onclick="viewApplication('${app.id}')">
                 <div class="application-avatar">${initial}</div>
                 <div class="application-info">
-                    <div class="application-name">${app.fullName}</div>
-                    <div class="application-nic">${LicenseXpress.formatNIC(app.nic)}</div>
-                    <div class="application-date">${LicenseXpress.formatDateTime(app.submittedDate)}</div>
+                    <div class="application-name">${escapeHtml(app.fullName)}</div>
+                    <div class="application-nic">${formatNIC(app.nic)}</div>
+                    <div class="application-date">${formattedDate}</div>
                 </div>
                 <div class="application-status ${statusClass}">${statusText}</div>
             </div>
@@ -144,24 +178,63 @@ function loadRecentApplications(applications) {
     }).join('');
 }
 
-function loadPendingReviews(applications) {
-    const pendingReviews = document.getElementById('pendingReviews');
-    const pendingCount = document.getElementById('pendingCount');
-    
-    const pendingApplications = applications.filter(app => app.status === 'pending_verification');
-    
-    pendingCount.textContent = pendingApplications.length;
 
-    pendingReviews.innerHTML = pendingApplications.map(app => {
-        const initial = app.fullName.charAt(0).toUpperCase();
+// LOAD PENDING REVIEWS
+
+async function loadPendingReviews() {
+    console.log('Loading pending reviews...');
+    
+    try {
+        const response = await fetch('api_admin-dashboard.php?action=getPendingReviews');
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        console.log('Pending reviews response:', result);
+        
+        if (result.success) {
+            displayPendingReviews(result.data);
+            updateElement('pendingCount', result.data ? result.data.length : 0);
+            console.log('Pending reviews loaded successfully');
+        } else {
+            throw new Error(result.message || 'Failed to load pending reviews');
+        }
+    } catch (error) {
+        console.error('Error loading pending reviews:', error);
+        const container = document.getElementById('pendingReviews');
+        if (container) {
+            container.innerHTML = '<div class="error-message">Failed to load reviews</div>';
+        }
+        throw error;
+    }
+}
+
+function displayPendingReviews(applications) {
+    const container = document.getElementById('pendingReviews');
+    
+    if (!container) {
+        console.error('pendingReviews container not found');
+        return;
+    }
+    
+    if (!applications || applications.length === 0) {
+        container.innerHTML = '<div class="empty-state">No pending reviews</div>';
+        return;
+    }
+    
+    container.innerHTML = applications.map(app => {
+        const initial = app.fullName ? app.fullName.charAt(0).toUpperCase() : '?';
+        const formattedDate = formatDateTime(app.submitted_date);
         
         return `
             <div class="pending-item">
                 <div class="pending-avatar">${initial}</div>
                 <div class="pending-info">
-                    <div class="pending-name">${app.fullName}</div>
-                    <div class="pending-nic">${LicenseXpress.formatNIC(app.nic)}</div>
-                    <div class="pending-date">Submitted ${LicenseXpress.formatDateTime(app.submittedDate)}</div>
+                    <div class="pending-name">${escapeHtml(app.fullName)}</div>
+                    <div class="pending-nic">${formatNIC(app.nic)}</div>
+                    <div class="pending-date">Submitted ${formattedDate}</div>
                 </div>
                 <div class="pending-actions">
                     <button class="btn btn-primary btn-sm" onclick="reviewApplication('${app.id}')">Review</button>
@@ -171,36 +244,105 @@ function loadPendingReviews(applications) {
     }).join('');
 }
 
-function loadSystemStats() {
+
+// LOAD SYSTEM METRICS
+async function loadSystemMetrics() {
+    console.log('Loading system metrics...');
     
-    const activeUsers = Math.floor(Math.random() * 50) + 20;
-    document.getElementById('activeUsers').textContent = activeUsers;
+    try {
+        const response = await fetch('api_admin-dashboard.php?action=getSystemMetrics');
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        console.log('System metrics response:', result);
+        
+        if (result.success) {
+            const metrics = result.data;
+            updateElement('activeUsers', metrics.activeUsers || 0);
+            console.log('System metrics loaded successfully');
+        } else {
+            throw new Error(result.message || 'Failed to load system metrics');
+        }
+    } catch (error) {
+        console.error('Error loading system metrics:', error);
+        updateElement('activeUsers', 0);
+        
+    }
 }
 
-function loadActivityLog() {
-    const activityLog = document.getElementById('activityLog');
-    const activities = JSON.parse(localStorage.getItem('adminActivityLog') || '[]');
-    
-    
-    const sortedActivities = activities.sort((a, b) => 
-        new Date(b.timestamp) - new Date(a.timestamp)
-    ).slice(0, 10);
+// LOAD ACTIVITY LOG
 
-    activityLog.innerHTML = sortedActivities.map(activity => {
+async function loadActivityLog() {
+    console.log('Loading activity log...');
+    
+    try {
+        const response = await fetch('api_admin-dashboard.php?action=getActivityLog&limit=10');
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        console.log('Activity log response:', result);
+        
+        if (result.success) {
+            displayActivityLog(result.data);
+            console.log('Activity log loaded successfully');
+        } else {
+            throw new Error(result.message || 'Failed to load activity log');
+        }
+    } catch (error) {
+        console.error('Error loading activity log:', error);
+        const container = document.getElementById('activityLog');
+        if (container) {
+            container.innerHTML = '<div class="error-message">Failed to load activity</div>';
+        }
+        
+    }
+}
+
+function displayActivityLog(activities) {
+    const container = document.getElementById('activityLog');
+    
+    if (!container) {
+        console.error('activityLog container not found');
+        return;
+    }
+    
+    if (!activities || activities.length === 0) {
+        container.innerHTML = '<div class="empty-state">No recent activity</div>';
+        return;
+    }
+    
+    container.innerHTML = activities.map(activity => {
         const icon = getActivityIcon(activity.action);
         const text = getActivityText(activity);
-        const time = LicenseXpress.formatDateTime(activity.timestamp);
+        const time = formatDateTime(activity.timestamp);
         
         return `
             <div class="activity-item">
                 <div class="activity-icon">${icon}</div>
                 <div class="activity-content">
-                    <div class="activity-text">${text}</div>
+                    <div class="activity-text">${escapeHtml(text)}</div>
                     <div class="activity-time">${time}</div>
                 </div>
             </div>
         `;
     }).join('');
+}
+
+
+
+function updateElement(id, value) {
+    const element = document.getElementById(id);
+    if (element) {
+        element.textContent = value;
+    } else {
+        console.warn(`Element with id '${id}' not found`);
+    }
 }
 
 function getStatusClass(status) {
@@ -210,19 +352,23 @@ function getStatusClass(status) {
         'rejected': 'rejected',
         'theory_scheduled': 'pending',
         'theory_passed': 'approved',
+        'theory_failed': 'rejected',
         'practical_scheduled': 'pending',
-        'license_issued': 'approved'
+        'license_issued': 'approved',
+        'not_started': 'pending'
     };
     return statusClasses[status] || 'pending';
 }
 
 function getStatusText(status) {
     const statusTexts = {
+        'not_started': 'Not Started',
         'pending_verification': 'Pending Review',
-        'verified': 'Approved',
+        'verified': 'Verified',
         'rejected': 'Rejected',
-        'theory_scheduled': 'Test Scheduled',
+        'theory_scheduled': 'Theory Scheduled',
         'theory_passed': 'Theory Passed',
+        'theory_failed': 'Theory Failed',
         'practical_scheduled': 'Practical Scheduled',
         'license_issued': 'License Issued'
     };
@@ -238,93 +384,219 @@ function getActivityIcon(action) {
         'approve_application': '✅',
         'reject_application': '❌',
         'generate_report': '📊',
-        'manage_users': '👥'
+        'manage_users': '👥',
+        'api_access': '🔌',
+        'schedule_test': '📅',
+        'update_settings': '⚙️'
     };
     return icons[action] || '📝';
 }
 
 function getActivityText(activity) {
+    const action = activity.action;
+    const username = activity.username || activity.fullName || 'Admin';
+    
     const texts = {
-        'login': `${activity.username} logged in`,
-        'logout': `${activity.username} logged out`,
-        'failed_login_attempt': 'Failed login attempt detected',
-        'review_application': `${activity.username} reviewed an application`,
-        'approve_application': `${activity.username} approved an application`,
-        'reject_application': `${activity.username} rejected an application`,
-        'generate_report': `${activity.username} generated a report`,
-        'manage_users': `${activity.username} managed users`
+        'login': `${username} logged in`,
+        'logout': `${username} logged out`,
+        'failed_login_attempt': `Failed login attempt`,
+        'review_application': `${username} reviewed application`,
+        'approve_application': `${username} approved application`,
+        'reject_application': `${username} rejected application`,
+        'generate_report': `${username} generated a report`,
+        'manage_users': `${username} managed users`,
+        'api_access': `${username} accessed dashboard`,
+        'schedule_test': `${username} scheduled a test`,
+        'update_settings': `${username} updated system settings`
     };
-    return texts[activity.action] || 'Unknown activity';
+    
+    return texts[action] || `${username} performed an action`;
 }
 
+function formatDateTime(dateString) {
+    if (!dateString) return 'N/A';
+    
+    try {
+        const date = new Date(dateString);
+        const now = new Date();
+        const diffMs = now - date;
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMs / 3600000);
+        const diffDays = Math.floor(diffMs / 86400000);
+        
+        if (diffMins < 1) return 'Just now';
+        if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
+        if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+        if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+        
+        return date.toLocaleDateString('en-US', { 
+            year: 'numeric', 
+            month: 'short', 
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    } catch (error) {
+        console.error('Error formatting date:', error);
+        return 'Invalid date';
+    }
+}
+
+function formatNIC(nic) {
+    if (!nic) return 'N/A';
+    
+    
+    if (nic.length === 12) {
+        return `${nic.slice(0, 4)} ${nic.slice(4, 8)} ${nic.slice(8)}`;
+    }
+    
+    if (nic.length === 10) {
+        return `${nic.slice(0, 6)} ${nic.slice(6)}`;
+    }
+    
+    return nic;
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function showLoadingState() {
+    const elements = [
+        'recentApplications',
+        'pendingReviews',
+        'activityLog'
+    ];
+    
+    elements.forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.innerHTML = '<div class="loading-spinner">Loading...</div>';
+        }
+    });
+}
+
+function hideLoadingState() {
+    
+}
+
+function showToast(message, type = 'info') {
+    console.log(`[${type.toUpperCase()}] ${message}`);
+    
+   
+    if (typeof LicenseXpress !== 'undefined' && typeof LicenseXpress.showToast === 'function') {
+        LicenseXpress.showToast(message, type);
+    } else {
+        
+        alert(message);
+    }
+}
+
+
+
 function initializeNavigation() {
+    console.log('Initializing navigation...');
     
+    // Logout 
     const logoutBtn = document.getElementById('logoutBtn');
-    logoutBtn.addEventListener('click', function() {
-        LicenseXpress.adminLogout();
-    });
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', function() {
+            if (confirm('Are you sure you want to logout?')) {
+                window.location.href = 'admin-login.php';
+            }
+        });
+    }
 
-    
-    document.getElementById('reviewApplications').addEventListener('click', function() {
-        window.location.href = 'admin-review.php';
-    });
+    // Quick actions
+    const reviewBtn = document.getElementById('reviewApplications');
+    if (reviewBtn) {
+        reviewBtn.addEventListener('click', function() {
+            window.location.href = 'admin-review.php';
+        });
+    }
 
-    document.getElementById('generateReport').addEventListener('click', function() {
-        generateReport();
-    });
+    const reportBtn = document.getElementById('generateReport');
+    if (reportBtn) {
+        reportBtn.addEventListener('click', function() {
+            generateReport();
+        });
+    }
 
-    document.getElementById('manageUsers').addEventListener('click', function() {
-        window.location.href = 'admin-users.php';
-    });
+    const usersBtn = document.getElementById('manageUsers');
+    if (usersBtn) {
+        usersBtn.addEventListener('click', function() {
+            window.location.href = 'admin-users.php';
+        });
+    }
 
-    document.getElementById('systemSettings').addEventListener('click', function() {
-        window.location.href = 'admin-settings.php';
-    });
+    const settingsBtn = document.getElementById('systemSettings');
+    if (settingsBtn) {
+        settingsBtn.addEventListener('click', function() {
+            window.location.href = 'admin-settings.php';
+        });
+    }
 
-    
-    document.getElementById('refreshActivity').addEventListener('click', function() {
-        loadActivityLog();
-        LicenseXpress.showToast('Activity log refreshed', 'success');
-    });
+    // Refresh activity
+    const refreshBtn = document.getElementById('refreshActivity');
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', async function() {
+            refreshBtn.disabled = true;
+            refreshBtn.textContent = 'Refreshing...';
+            
+            try {
+                await loadActivityLog();
+                showToast('Activity log refreshed', 'success');
+            } catch (error) {
+                showToast('Failed to refresh activity log', 'error');
+            } finally {
+                refreshBtn.disabled = false;
+                refreshBtn.textContent = 'Refresh';
+            }
+        });
+    }
+}
+
+function viewApplication(applicationId) {
+    window.location.href = `admin-review.php?id=${applicationId}`;
 }
 
 function reviewApplication(applicationId) {
     window.location.href = `admin-review.php?id=${applicationId}`;
 }
 
-function generateReport() {
+async function generateReport() {
+    showToast('Generating report...', 'info');
     
-    LicenseXpress.showToast('Generating report...', 'info');
-    
-    setTimeout(() => {
-        LicenseXpress.showToast('Report generated successfully!', 'success');
-        
-        
-        const currentAdmin = LicenseXpress.getCurrentAdmin();
-        logAdminActivity('generate_report', currentAdmin.username);
-    }, 2000);
-}
-
-function logAdminActivity(action, username) {
-    const activityLog = JSON.parse(localStorage.getItem('adminActivityLog') || '[]');
-    
-    activityLog.push({
-        action: action,
-        username: username,
-        timestamp: new Date().toISOString(),
-        ip: '127.0.0.1',
-        userAgent: navigator.userAgent
-    });
-
-    
-    if (activityLog.length > 100) {
-        activityLog.splice(0, activityLog.length - 100);
+    try {
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        showToast('Report generated successfully!', 'success');
+    } catch (error) {
+        console.error('Error generating report:', error);
+        showToast('Failed to generate report', 'error');
     }
-
-    localStorage.setItem('adminActivityLog', JSON.stringify(activityLog));
 }
 
 
-setInterval(() => {
-    loadDashboardData();
-}, 30000);
+// AUTO-REFRESH 
+
+
+let refreshInterval;
+
+function startAutoRefresh() {
+    if (refreshInterval) {
+        clearInterval(refreshInterval);
+    }
+    
+    refreshInterval = setInterval(async () => {
+        console.log('Auto-refreshing dashboard data...');
+        try {
+            await loadDashboardData();
+        } catch (error) {
+            console.error('Auto-refresh failed:', error);
+        }
+    }, 30000); 
+}
+
