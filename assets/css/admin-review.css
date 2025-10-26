@@ -15,7 +15,6 @@
     font-size: 18px;
     color: var(--text-muted);
     line-height: 1.6;
-    
 }
 
 
@@ -128,6 +127,7 @@ select.filter-select option {
     font-size: 14px;
     color: var(--text-muted);
 }
+
 
 .applications-list {
     display: flex;
@@ -473,6 +473,7 @@ select.filter-select option {
     background: rgba(239, 68, 68, 0.1);
     color: var(--error);
 }
+
 
 .payment-details {
     display: grid;
