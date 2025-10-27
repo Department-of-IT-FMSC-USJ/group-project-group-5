@@ -34,12 +34,6 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
                     <div class="logo-icon">LX</div>
                     <span class="logo-text">LicenseXpress</span>
                 </div>
-                <nav class="nav">
-                    <a href="dashboard.php" class="nav-link active">Dashboard</a>
-                    <a href="application-form.php" class="nav-link">Application</a>
-                    <a href="pages/about.php" class="nav-link">About</a>
-                    <a href="pages/contactus.php" class="nav-link">Contact</a>
-                </nav>
                 <div class="header-actions">
                     <div class="user-avatar" id="userAvatar">J</div>
                 <button class="logout-btn" id="logoutBtn" title="Logout" onclick="LicenseXpress.logout();">
@@ -69,8 +63,8 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
                         <div class="avatar-circle" id="profileAvatar">J</div>
                     </div>
                     <div class="profile-info">
-                        <h1 class="profile-name" id="profileName">John Doe</h1>
-                        <p class="profile-nic" id="profileNIC">200012345678</p>
+                        <h1 class="profile-name" id="profileName">Loading...</h1>
+                        <p class="profile-nic" id="profileNIC">Loading...</p>
                     </div>
                 </div>
                 <div class="status-message" id="statusMessage">
@@ -175,9 +169,9 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             
-           
+
             LicenseXpress.initializeUserData();
-            
+
             // Check for recent exam results and update status
             const lastExamResult = JSON.parse(localStorage.getItem('lastExamResult') || 'null');
             if (lastExamResult && lastExamResult.timestamp) {
@@ -651,7 +645,7 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
                     const user = data.user;
                     const payment = data.payment;
                     
-                    // Format the application details - Only essential information
+                    // Format applicationdetails - Only the essential information
                     const applicationDetails = `
                         <div class="application-details">
                             <div class="details-header">
@@ -749,7 +743,7 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
                    
                     const currentUser = LicenseXpress.getCurrentUser();
                     
-                  const licenseData = {
+                    const licenseData = {
                         number: license?.license_number || 'DL-2025-001234',
                         name: currentUser?.full_name || 'Not specified',
                         nic: currentUser?.nic || 'Not specified',
@@ -1254,18 +1248,18 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
                 </div>
                 
                 <div class="verification-info-grid">
-                    <div class="info-card glass-card">
+                <div class="info-card glass-card">
                         <div class="info-icon">📧</div>
                         <div class="info-content">
                             <h4>Email Notifications</h4>
                             <p>You'll receive email updates when:</p>
                             <ul>
                                 <li>Verification starts</li>
-                                <li>Documents are approved</li>
+                        <li>Documents are approved</li>
                                 <li>Any issues are found</li>
                                 <li>Verification is complete</li>
-                            </ul>
-                        </div>
+                    </ul>
+                </div>
                     </div>
                     
                     <div class="info-card glass-card">
@@ -1391,19 +1385,35 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
 
         function generateVerifiedContent() {
             return `
-                <div class="success-card glass-card">
-                    <h3>🎉 Verification Complete!</h3>
-                    <p>Your documents have been approved. You can now proceed to schedule your theory test.</p>
-                    <div class="test-info">
-                        <h4>Theory Test Information:</h4>
-                        <ul>
-                            <li>Format: Online examination</li>
-                            <li>Questions: 40 multiple choice</li>
-                            <li>Duration: 45 minutes</li>
-                            <li>Pass Mark: 35/40 (87.5%)</li>
-                            <li>Attempts: Unlimited (with fees)</li>
-                        </ul>
-                        <p>The test can be taken from anywhere with a stable internet connection.</p>
+                <div class="verified-clean-section">
+                    <div class="success-message">
+                        <div class="success-icon">✅</div>
+                        <div class="success-text">
+                            <h2>Great! Your documents are verified</h2>
+                            <p>You can now schedule your theory test</p>
+                        </div>
+                    </div>
+                    
+                    <div class="test-info-box">
+                        <h3>About the Theory Test</h3>
+                        <div class="info-list">
+                            <div class="info-item">
+                                <span class="info-label">Questions:</span>
+                                <span class="info-value">50 multiple choice</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Time:</span>
+                                <span class="info-value">45 minutes</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Pass mark:</span>
+                                <span class="info-value">40 out of 50 (80%)</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="next-action">
+                        <p>📅 Click the "Schedule Theory Test" button above to book your exam</p>
                     </div>
                 </div>
             `;
@@ -1878,7 +1888,7 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
             
             
             const rawFullName = currentUser.fullName || userProfile.fullName || currentUser.full_name || userProfile.full_name || 'User';
-            const fullName = rawFullName.replace(/\s+/g, ' ').trim(); // Clean up extra spaces
+            const fullName = rawFullName.replace(/\s+/g, ' ').trim(); 
             const nic = currentUser.nic || userProfile.nic || '';
             const applicationId = applicationState.applicationId || 'LX-2025-001234';
             
@@ -1913,7 +1923,7 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
                     <div class="user-info-section">
                         <div class="user-avatar-large">
                             <div class="avatar-circle-large">${fullName.charAt(0).toUpperCase()}</div>
-                        </div>
+                </div>
                         <div class="user-details">
                             <h4 class="user-name">${fullName}</h4>
                             <p class="user-nic">NIC: ${LicenseXpress.formatNIC(nic)}</p>
