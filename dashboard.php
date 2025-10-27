@@ -160,13 +160,10 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
                 </button>
             </div>
 
-            
+           
             <div class="dynamic-content" id="dynamicContent">
                 
             </div>
-
-            
-            <div id="statusDebug"></div>
         </div>
     </main>
 
@@ -177,11 +174,7 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             
-<<<<<<< Updated upstream
-          
-=======
            
->>>>>>> Stashed changes
             LicenseXpress.initializeUserData();
 
        
@@ -193,11 +186,7 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
                 return;
             }
 
-<<<<<<< Updated upstream
-            
-=======
            
->>>>>>> Stashed changes
             fetch(`get_application_status.php?nic=${encodeURIComponent(currentUser.nic)}`)
                 .then(response => response.json())
                 .then(data => {
@@ -326,15 +315,9 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
            
             updateBreadcrumb(status);
 
-<<<<<<< Updated upstream
-            updateStatusDetails(applicationState, userProfile, tests, license);
-
-            
-=======
           
             updateStatusDetails(applicationState, userProfile, tests, license);
 
->>>>>>> Stashed changes
             updateTimeline(status, applicationState, tests, license);
 
            
@@ -343,24 +326,7 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
             
             updateDynamicContent(status, applicationState, userProfile, tests, license);
 
-<<<<<<< Updated upstream
-            
-            const statusDebug = document.getElementById('statusDebug');
-            if (statusDebug) {
-                statusDebug.innerHTML = `
-                    <div style="background: rgba(255, 255, 255, 0.1); padding: 10px; border-radius: 8px; margin: 10px 0; font-size: 12px;">
-                        <strong>Debug Info:</strong><br>
-                        Status: ${status}<br>
-                        Application ID: ${applicationState.applicationId || 'None'}<br>
-                        Submitted Date: ${applicationState.submittedDate || 'None'}
-                    </div>
-                `;
-            }
-
-            
-=======
         
->>>>>>> Stashed changes
             if (status === 'license_issued') {
                 setTimeout(() => {
                     LicenseXpress.createConfetti();
@@ -371,10 +337,6 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
         function updateStatusBadge(status) {
             const statusBadge = document.getElementById('statusBadge');
             
-<<<<<<< Updated upstream
-          
-=======
->>>>>>> Stashed changes
             if (!statusBadge) {
                 console.log('Status badge element not found - skipping update');
                 return;
@@ -499,11 +461,11 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
 
                 case 'license_issued':
                     statusLabel1.textContent = 'License Number';
-                    statusValue1.textContent = license.number;
+                    statusValue1.textContent = license?.license_number || 'Not issued';
                     statusLabel2.textContent = 'Issue Date';
-                    statusValue2.textContent = LicenseXpress.formatDate(license.issueDate);
+                    statusValue2.textContent = LicenseXpress.formatDate(license?.issue_date);
                     statusLabel3.textContent = 'Expiry Date';
-                    statusValue3.textContent = LicenseXpress.formatDate(license.expiryDate);
+                    statusValue3.textContent = LicenseXpress.formatDate(license?.expiry_date);
                     break;
             }
         }
@@ -526,7 +488,7 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
                 { id: 'theory_scheduled', icon: '📝', label: 'Theory Test Scheduled', date: tests.theory?.date, color: 'blue' },
                 { id: 'theory_passed', icon: '🎓', label: 'Theory Passed', date: tests.theory?.passedDate, color: 'green' },
                 { id: 'practical_scheduled', icon: '🚗', label: 'Practical Scheduled', date: tests.practical?.date, color: 'blue' },
-                { id: 'license_issued', icon: '🏆', label: 'License Issued', date: license.issueDate, color: 'gold' }
+                { id: 'license_issued', icon: '🏆', label: 'License Issued', date: license?.issue_date, color: 'gold' }
             ];
 
             const timelineHTML = steps.map((step, index) => {
@@ -668,21 +630,6 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
                     break;
 
                 case 'download-license':
-<<<<<<< Updated upstream
-                    LicenseXpress.showModal('Download License', `
-                        <div class="license-download">
-                            <h4>Your Digital License is Ready!</h4>
-                            <p>License Number: ${license.number}</p>
-                            <p>Issue Date: ${LicenseXpress.formatDate(license.issueDate)}</p>
-                            <p>Expiry Date: ${LicenseXpress.formatDate(license.expiryDate)}</p>
-                            <p>Category: ${license.category}</p>
-                        </div>
-                    `, [
-                        { text: 'Download PDF', action: 'download-pdf', class: 'btn-primary' },
-                        { text: 'Download Image', action: 'download-image', class: 'btn-secondary' },
-                        { text: 'Close', action: 'close' }
-                    ]);
-=======
                    
                     const currentUser = LicenseXpress.getCurrentUser();
                     
@@ -885,7 +832,6 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
                     
                 
                     LicenseXpress.showToast('Opening license for download/print...', 'success');
->>>>>>> Stashed changes
                     break;
 
                 case 'download-study-guide':
@@ -1090,35 +1036,454 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
 
         function generateTheoryScheduledContent(tests) {
             return `
-                <div class="test-details-card glass-card">
-                    <h3>📅 Theory Test Details</h3>
-                    <div class="test-info">
-                        <p><strong>Date:</strong> ${LicenseXpress.formatDate(tests.theory.date)}</p>
-                        <p><strong>Time:</strong> ${tests.theory.time}</p>
-                        <p><strong>Duration:</strong> 60 minutes</p>
-                        <p><strong>Format:</strong> Online Examination</p>
-                        <p><strong>Questions:</strong> 50 multiple choice</p>
-                        <p><strong>Pass Mark:</strong> 40/50 (80%)</p>
+                <div class="theory-test-card" style="
+                    background: linear-gradient(135deg, rgba(0, 95, 115, 0.1) 0%, rgba(10, 147, 150, 0.1) 100%);
+                    border: 2px solid rgba(0, 95, 115, 0.3);
+                    border-radius: 20px;
+                    padding: 30px;
+                    margin: 20px 0;
+                    box-shadow: 0 10px 40px rgba(0, 95, 115, 0.2);
+                    backdrop-filter: blur(10px);
+                ">
+                    <!-- Header Section -->
+                    <div style="
+                        display: flex;
+                        align-items: center;
+                        margin-bottom: 30px;
+                        padding-bottom: 20px;
+                        border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+                    ">
+                        <div style="
+                            background: linear-gradient(135deg, #005F73, #0A9396);
+                            border-radius: 15px;
+                            width: 60px;
+                            height: 60px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            font-size: 28px;
+                            margin-right: 20px;
+                            box-shadow: 0 5px 15px rgba(0, 95, 115, 0.3);
+                        ">📚</div>
+                        <div>
+                            <h2 style="
+                                color: #FFFFFF;
+                                font-size: 28px;
+                                font-weight: 700;
+                                margin: 0 0 8px 0;
+                                text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+                            ">Theory Test Details</h2>
+                            <p style="
+                                color: #94B8C4;
+                                font-size: 16px;
+                                margin: 0;
+                                font-weight: 400;
+                            ">Your scheduled examination information</p>
                     </div>
-                    <div class="test-requirements">
-                        <h4>Exam Requirements:</h4>
-                        <ul>
-                            <li>✓ Stable internet connection</li>
-                            <li>✓ Quiet environment</li>
-                            <li>✓ Webcam access (required for monitoring)</li>
-                            <li>✓ Computer/tablet (mobile not recommended)</li>
-                            <li>✓ Government-issued ID</li>
-                        </ul>
                     </div>
-                    <div class="exam-notice">
-                        <h4>⚠️ Important Exam Rules:</h4>
-                        <ul>
-                            <li>• No switching tabs or windows during exam</li>
-                            <li>• No right-clicking or keyboard shortcuts</li>
-                            <li>• No screenshots or screen recording</li>
-                            <li>• Camera monitoring is active throughout</li>
-                            <li>• Any violation will terminate the exam</li>
-                        </ul>
+                    
+                    <!-- Test Information Grid -->
+                    <div style="
+                        display: grid;
+                        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                        gap: 20px;
+                        margin-bottom: 30px;
+                    ">
+                        <div style="
+                            background: rgba(255, 255, 255, 0.08);
+                            border: 1px solid rgba(255, 255, 255, 0.15);
+                            border-radius: 15px;
+                            padding: 20px;
+                            transition: all 0.3s ease;
+                            cursor: pointer;
+                        " onmouseover="this.style.transform='translateY(-5px)'; this.style.background='rgba(255, 255, 255, 0.12)'" onmouseout="this.style.transform='translateY(0)'; this.style.background='rgba(255, 255, 255, 0.08)'">
+                            <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                                <div style="
+                                    background: linear-gradient(135deg, #EE9B00, #F9C74F);
+                                    border-radius: 10px;
+                                    width: 40px;
+                                    height: 40px;
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                    font-size: 18px;
+                                    margin-right: 15px;
+                                ">📅</div>
+                                <div>
+                                    <div style="color: #94B8C4; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Test Date</div>
+                                    <div style="color: #FFFFFF; font-size: 18px; font-weight: 700;">${LicenseXpress.formatDate(tests.theory.date)}</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div style="
+                            background: rgba(255, 255, 255, 0.08);
+                            border: 1px solid rgba(255, 255, 255, 0.15);
+                            border-radius: 15px;
+                            padding: 20px;
+                            transition: all 0.3s ease;
+                            cursor: pointer;
+                        " onmouseover="this.style.transform='translateY(-5px)'; this.style.background='rgba(255, 255, 255, 0.12)'" onmouseout="this.style.transform='translateY(0)'; this.style.background='rgba(255, 255, 255, 0.08)'">
+                            <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                                <div style="
+                                    background: linear-gradient(135deg, #10B981, #34D399);
+                                    border-radius: 10px;
+                                    width: 40px;
+                                    height: 40px;
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                    font-size: 18px;
+                                    margin-right: 15px;
+                                ">🕐</div>
+                                <div>
+                                    <div style="color: #94B8C4; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Test Time</div>
+                                    <div style="color: #FFFFFF; font-size: 18px; font-weight: 700;">${tests.theory.time}</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div style="
+                            background: rgba(255, 255, 255, 0.08);
+                            border: 1px solid rgba(255, 255, 255, 0.15);
+                            border-radius: 15px;
+                            padding: 20px;
+                            transition: all 0.3s ease;
+                            cursor: pointer;
+                        " onmouseover="this.style.transform='translateY(-5px)'; this.style.background='rgba(255, 255, 255, 0.12)'" onmouseout="this.style.transform='translateY(0)'; this.style.background='rgba(255, 255, 255, 0.08)'">
+                            <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                                <div style="
+                                    background: linear-gradient(135deg, #8B5CF6, #A78BFA);
+                                    border-radius: 10px;
+                                    width: 40px;
+                                    height: 40px;
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                    font-size: 18px;
+                                    margin-right: 15px;
+                                ">⏱️</div>
+                                <div>
+                                    <div style="color: #94B8C4; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Duration</div>
+                                    <div style="color: #FFFFFF; font-size: 18px; font-weight: 700;">60 minutes</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div style="
+                            background: rgba(255, 255, 255, 0.08);
+                            border: 1px solid rgba(255, 255, 255, 0.15);
+                            border-radius: 15px;
+                            padding: 20px;
+                            transition: all 0.3s ease;
+                            cursor: pointer;
+                        " onmouseover="this.style.transform='translateY(-5px)'; this.style.background='rgba(255, 255, 255, 0.12)'" onmouseout="this.style.transform='translateY(0)'; this.style.background='rgba(255, 255, 255, 0.08)'">
+                            <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                                <div style="
+                                    background: linear-gradient(135deg, #F59E0B, #FBBF24);
+                                    border-radius: 10px;
+                                    width: 40px;
+                                    height: 40px;
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                    font-size: 18px;
+                                    margin-right: 15px;
+                                ">💻</div>
+                                <div>
+                                    <div style="color: #94B8C4; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Format</div>
+                                    <div style="color: #FFFFFF; font-size: 18px; font-weight: 700;">Online Examination</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div style="
+                            background: rgba(255, 255, 255, 0.08);
+                            border: 1px solid rgba(255, 255, 255, 0.15);
+                            border-radius: 15px;
+                            padding: 20px;
+                            transition: all 0.3s ease;
+                            cursor: pointer;
+                        " onmouseover="this.style.transform='translateY(-5px)'; this.style.background='rgba(255, 255, 255, 0.12)'" onmouseout="this.style.transform='translateY(0)'; this.style.background='rgba(255, 255, 255, 0.08)'">
+                            <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                                <div style="
+                                    background: linear-gradient(135deg, #EF4444, #F87171);
+                                    border-radius: 10px;
+                                    width: 40px;
+                                    height: 40px;
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                    font-size: 18px;
+                                    margin-right: 15px;
+                                ">❓</div>
+                                <div>
+                                    <div style="color: #94B8C4; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Questions</div>
+                                    <div style="color: #FFFFFF; font-size: 18px; font-weight: 700;">50 multiple choice</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div style="
+                            background: rgba(255, 255, 255, 0.08);
+                            border: 1px solid rgba(255, 255, 255, 0.15);
+                            border-radius: 15px;
+                            padding: 20px;
+                            transition: all 0.3s ease;
+                            cursor: pointer;
+                        " onmouseover="this.style.transform='translateY(-5px)'; this.style.background='rgba(255, 255, 255, 0.12)'" onmouseout="this.style.transform='translateY(0)'; this.style.background='rgba(255, 255, 255, 0.08)'">
+                            <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                                <div style="
+                                    background: linear-gradient(135deg, #059669, #10B981);
+                                    border-radius: 10px;
+                                    width: 40px;
+                                    height: 40px;
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                    font-size: 18px;
+                                    margin-right: 15px;
+                                ">🎯</div>
+                                <div>
+                                    <div style="color: #94B8C4; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Pass Mark</div>
+                                    <div style="color: #FFFFFF; font-size: 18px; font-weight: 700;">40/50 (80%)</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Requirements Section -->
+                    <div style="
+                        background: rgba(16, 185, 129, 0.1);
+                        border: 2px solid rgba(16, 185, 129, 0.3);
+                        border-radius: 15px;
+                        padding: 25px;
+                        margin-bottom: 25px;
+                    ">
+                        <div style="margin-bottom: 20px;">
+                            <h3 style="
+                                color: #10B981;
+                                font-size: 22px;
+                                font-weight: 700;
+                                margin: 0 0 8px 0;
+                                display: flex;
+                                align-items: center;
+                            ">📋 What You Need</h3>
+                            <p style="color: #94B8C4; font-size: 16px; margin: 0;">Essential requirements for your exam</p>
+                        </div>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px;">
+                            <div style="
+                                background: rgba(16, 185, 129, 0.15);
+                                border: 1px solid rgba(16, 185, 129, 0.3);
+                                border-radius: 12px;
+                                padding: 15px;
+                                display: flex;
+                                align-items: center;
+                                transition: all 0.3s ease;
+                            " onmouseover="this.style.background='rgba(16, 185, 129, 0.25)'" onmouseout="this.style.background='rgba(16, 185, 129, 0.15)'">
+                                <div style="font-size: 20px; margin-right: 12px;">🌐</div>
+                                <span style="color: #FFFFFF; font-weight: 600;">Stable internet connection</span>
+                            </div>
+                            <div style="
+                                background: rgba(16, 185, 129, 0.15);
+                                border: 1px solid rgba(16, 185, 129, 0.3);
+                                border-radius: 12px;
+                                padding: 15px;
+                                display: flex;
+                                align-items: center;
+                                transition: all 0.3s ease;
+                            " onmouseover="this.style.background='rgba(16, 185, 129, 0.25)'" onmouseout="this.style.background='rgba(16, 185, 129, 0.15)'">
+                                <div style="font-size: 20px; margin-right: 12px;">🔇</div>
+                                <span style="color: #FFFFFF; font-weight: 600;">Quiet environment</span>
+                            </div>
+                            <div style="
+                                background: rgba(16, 185, 129, 0.15);
+                                border: 1px solid rgba(16, 185, 129, 0.3);
+                                border-radius: 12px;
+                                padding: 15px;
+                                display: flex;
+                                align-items: center;
+                                transition: all 0.3s ease;
+                            " onmouseover="this.style.background='rgba(16, 185, 129, 0.25)'" onmouseout="this.style.background='rgba(16, 185, 129, 0.15)'">
+                                <div style="font-size: 20px; margin-right: 12px;">📹</div>
+                                <span style="color: #FFFFFF; font-weight: 600;">Webcam access (monitoring)</span>
+                            </div>
+                            <div style="
+                                background: rgba(16, 185, 129, 0.15);
+                                border: 1px solid rgba(16, 185, 129, 0.3);
+                                border-radius: 12px;
+                                padding: 15px;
+                                display: flex;
+                                align-items: center;
+                                transition: all 0.3s ease;
+                            " onmouseover="this.style.background='rgba(16, 185, 129, 0.25)'" onmouseout="this.style.background='rgba(16, 185, 129, 0.15)'">
+                                <div style="font-size: 20px; margin-right: 12px;">💻</div>
+                                <span style="color: #FFFFFF; font-weight: 600;">Computer/tablet device</span>
+                            </div>
+                            <div style="
+                                background: rgba(16, 185, 129, 0.15);
+                                border: 1px solid rgba(16, 185, 129, 0.3);
+                                border-radius: 12px;
+                                padding: 15px;
+                                display: flex;
+                                align-items: center;
+                                transition: all 0.3s ease;
+                            " onmouseover="this.style.background='rgba(16, 185, 129, 0.25)'" onmouseout="this.style.background='rgba(16, 185, 129, 0.15)'">
+                                <div style="font-size: 20px; margin-right: 12px;">🆔</div>
+                                <span style="color: #FFFFFF; font-weight: 600;">Government-issued ID</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Rules Section -->
+                    <div style="
+                        background: rgba(245, 158, 11, 0.1);
+                        border: 2px solid rgba(245, 158, 11, 0.3);
+                        border-radius: 15px;
+                        padding: 25px;
+                        margin-bottom: 25px;
+                    ">
+                        <div style="margin-bottom: 20px;">
+                            <h3 style="
+                                color: #F59E0B;
+                                font-size: 22px;
+                                font-weight: 700;
+                                margin: 0 0 8px 0;
+                                display: flex;
+                                align-items: center;
+                            ">⚠️ Important Rules</h3>
+                            <p style="color: #94B8C4; font-size: 16px; margin: 0;">Follow these rules to avoid exam termination</p>
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 12px;">
+                            <div style="
+                                background: rgba(245, 158, 11, 0.15);
+                                border: 1px solid rgba(245, 158, 11, 0.3);
+                                border-radius: 12px;
+                                padding: 15px;
+                                display: flex;
+                                align-items: center;
+                                transition: all 0.3s ease;
+                            " onmouseover="this.style.background='rgba(245, 158, 11, 0.25)'" onmouseout="this.style.background='rgba(245, 158, 11, 0.15)'">
+                                <div style="font-size: 18px; margin-right: 12px;">🚫</div>
+                                <span style="color: #FFFFFF; font-weight: 600;">No switching tabs or windows</span>
+                            </div>
+                            <div style="
+                                background: rgba(245, 158, 11, 0.15);
+                                border: 1px solid rgba(245, 158, 11, 0.3);
+                                border-radius: 12px;
+                                padding: 15px;
+                                display: flex;
+                                align-items: center;
+                                transition: all 0.3s ease;
+                            " onmouseover="this.style.background='rgba(245, 158, 11, 0.25)'" onmouseout="this.style.background='rgba(245, 158, 11, 0.15)'">
+                                <div style="font-size: 18px; margin-right: 12px;">🚫</div>
+                                <span style="color: #FFFFFF; font-weight: 600;">No right-clicking or shortcuts</span>
+                            </div>
+                            <div style="
+                                background: rgba(245, 158, 11, 0.15);
+                                border: 1px solid rgba(245, 158, 11, 0.3);
+                                border-radius: 12px;
+                                padding: 15px;
+                                display: flex;
+                                align-items: center;
+                                transition: all 0.3s ease;
+                            " onmouseover="this.style.background='rgba(245, 158, 11, 0.25)'" onmouseout="this.style.background='rgba(245, 158, 11, 0.15)'">
+                                <div style="font-size: 18px; margin-right: 12px;">🚫</div>
+                                <span style="color: #FFFFFF; font-weight: 600;">No screenshots or recording</span>
+                            </div>
+                            <div style="
+                                background: rgba(245, 158, 11, 0.15);
+                                border: 1px solid rgba(245, 158, 11, 0.3);
+                                border-radius: 12px;
+                                padding: 15px;
+                                display: flex;
+                                align-items: center;
+                                transition: all 0.3s ease;
+                            " onmouseover="this.style.background='rgba(245, 158, 11, 0.25)'" onmouseout="this.style.background='rgba(245, 158, 11, 0.15)'">
+                                <div style="font-size: 18px; margin-right: 12px;">👁️</div>
+                                <span style="color: #FFFFFF; font-weight: 600;">Camera monitoring is active</span>
+                            </div>
+                            <div style="
+                                background: rgba(245, 158, 11, 0.15);
+                                border: 1px solid rgba(245, 158, 11, 0.3);
+                                border-radius: 12px;
+                                padding: 15px;
+                                display: flex;
+                                align-items: center;
+                                transition: all 0.3s ease;
+                            " onmouseover="this.style.background='rgba(245, 158, 11, 0.25)'" onmouseout="this.style.background='rgba(245, 158, 11, 0.15)'">
+                                <div style="font-size: 18px; margin-right: 12px;">⚡</div>
+                                <span style="color: #FFFFFF; font-weight: 600;">Violations will terminate exam</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Test Link Section -->
+                    <div style="
+                        background: linear-gradient(135deg, rgba(0, 95, 115, 0.2) 0%, rgba(10, 147, 150, 0.2) 100%);
+                        border: 2px solid rgba(0, 95, 115, 0.4);
+                        border-radius: 15px;
+                        padding: 25px;
+                        text-align: center;
+                    ">
+                        <div style="margin-bottom: 20px;">
+                            <h3 style="
+                                color: #0A9396;
+                                font-size: 22px;
+                                font-weight: 700;
+                                margin: 0 0 8px 0;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                            ">🔗 Your Test Link</h3>
+                            <p style="color: #94B8C4; font-size: 16px; margin: 0;">Access your exam 1 hour before scheduled time</p>
+                        </div>
+                        <div style="
+                            background: rgba(255, 255, 255, 0.1);
+                            border: 1px solid rgba(255, 255, 255, 0.2);
+                            border-radius: 12px;
+                            padding: 20px;
+                            margin-bottom: 20px;
+                        ">
+                            <div style="color: #94B8C4; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Exam Link</div>
+                            <div style="color: #FFFFFF; font-size: 16px; font-family: 'Courier New', monospace; word-break: break-all;">${tests.theory.testLink || 'Will be provided 1 hour before exam'}</div>
+                        </div>
+                        ${tests.theory.testLink ? `
+                            <button onclick="window.open('${tests.theory.testLink}', '_blank')" style="
+                                background: linear-gradient(135deg, #005F73, #0A9396);
+                                color: white;
+                                border: none;
+                                border-radius: 12px;
+                                padding: 15px 30px;
+                                font-size: 16px;
+                                font-weight: 700;
+                                cursor: pointer;
+                                transition: all 0.3s ease;
+                                box-shadow: 0 5px 15px rgba(0, 95, 115, 0.3);
+                                display: inline-flex;
+                                align-items: center;
+                                gap: 10px;
+                            " onmouseover="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 8px 25px rgba(0, 95, 115, 0.4)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 5px 15px rgba(0, 95, 115, 0.3)'">
+                                🚀 Start Exam
+                            </button>
+                        ` : `
+                            <button disabled style="
+                                background: rgba(255, 255, 255, 0.1);
+                                color: #94B8C4;
+                                border: 1px solid rgba(255, 255, 255, 0.2);
+                                border-radius: 12px;
+                                padding: 15px 30px;
+                                font-size: 16px;
+                                font-weight: 700;
+                                cursor: not-allowed;
+                                opacity: 0.6;
+                                display: inline-flex;
+                                align-items: center;
+                                gap: 10px;
+                            ">
+                                ⏰ Link Available Soon
+                            </button>
+                        `}
                     </div>
                 </div>
             `;
@@ -1386,26 +1751,6 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
             `;
         }
 
-<<<<<<< Updated upstream
-        function generateLicenseIssuedContent(license) {
-            return `
-                <div class="license-preview glass-card">
-                    <h3>🏆 Your Digital License</h3>
-                    <div class="license-card-preview">
-                        <div class="license-header">🇱🇰 SRI LANKA DRIVING LICENSE</div>
-                        <div class="license-content">
-                            <div class="license-photo">[Photo]</div>
-                            <div class="license-details">
-                                <p><strong>LICENSE NUMBER:</strong> ${license.number}</p>
-                                <p><strong>NAME:</strong> ${license.name || 'JOHN DOE'}</p>
-                                <p><strong>NIC:</strong> ${license.nic || '200012345678'}</p>
-                                <p><strong>ADDRESS:</strong> ${license.address || 'Colombo 07'}</p>
-                                <p><strong>CATEGORY:</strong> ${license.category} - Light Motor Vehicle</p>
-                                <p><strong>TRANSMISSION:</strong> ${license.transmission || 'Manual'}</p>
-                                <p><strong>ISSUE DATE:</strong> ${LicenseXpress.formatDate(license.issueDate)}</p>
-                                <p><strong>EXPIRY DATE:</strong> ${LicenseXpress.formatDate(license.expiryDate)}</p>
-                            </div>
-=======
         function generateLicenseIssuedContent(license, userProfile) {
             
             const formatDate = (dateString) => {
@@ -1461,35 +1806,13 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
                         <div class="info-row">
                             <span class="label">Expiry Date:</span>
                             <span class="value">${formatDate(expiryDate)}</span>
->>>>>>> Stashed changes
                         </div>
                     </div>
-                </div>
-                <div class="license-actions glass-card">
-                    <h3>📄 Download Options</h3>
-                    <div class="action-buttons">
-                        <button class="btn btn-primary">Download Digital License</button>
-                        <button class="btn btn-secondary">Download as Image</button>
-                        <button class="btn btn-secondary">Print License</button>
-                    </div>
-                </div>
-                <div class="achievement-summary glass-card">
-                    <h3>🎊 Journey Summary</h3>
-                    <div class="summary-content">
-                        <p><strong>Started:</strong> ${LicenseXpress.formatDate(license.journeyStart || new Date(Date.now() - 46*24*60*60*1000).toISOString())}</p>
-                        <p><strong>Completed:</strong> ${LicenseXpress.formatDate(license.issueDate)}</p>
-                        <p><strong>Total Time:</strong> 46 days</p>
-                        <div class="milestones">
-                            <h4>Milestones:</h4>
-                            <ul>
-                                <li>✓ Application submitted</li>
-                                <li>✓ Documents verified</li>
-                                <li>✓ Theory test passed (38/40 - 95%)</li>
-                                <li>✓ Practical test passed</li>
-                                <li>✓ License issued</li>
-                            </ul>
-                            <p><strong>You're now a licensed driver! 🎉</strong></p>
-                        </div>
+                    
+                    <div class="success-message">
+                        <div class="success-icon">🚗</div>
+                        <p><strong>Welcome to the road! Drive safely and responsibly.</strong></p>
+                        <p class="reminder">Remember to always carry your physical license when driving.</p>
                     </div>
                 </div>
             `;
@@ -1497,8 +1820,6 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
     </script>
 
     <style>
-<<<<<<< Updated upstream
-=======
        
         .congratulations-header {
             text-align: center;
@@ -1619,7 +1940,6 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
             }
         }
         
->>>>>>> Stashed changes
         .header {
             display: block;
         }
@@ -1678,10 +1998,7 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
             opacity: 0.6;
         }
 
-<<<<<<< Updated upstream
-=======
         /* Timeline Styles */
->>>>>>> Stashed changes
         .timeline-section {
             margin: 40px 0;
         }
