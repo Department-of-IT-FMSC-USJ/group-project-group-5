@@ -1,9 +1,6 @@
 <?php
 session_start();
 ?>
-
-//testing 
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -17,7 +14,7 @@ session_start();
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
-    
+    <!-- Header -->
     <header class="header">
         <div class="container">
             <div class="header-content">
@@ -40,16 +37,16 @@ session_start();
         </div>
     </header>
 
-    
+    <!-- Main Content -->
     <main class="guidelines-main">
         <div class="container">
-            
+            <!-- Page Header -->
             <div class="page-header">
                 <h1 class="page-title">Application Guidelines</h1>
                 <p class="page-subtitle">Complete guide to applying for your driving license through LicenseXpress</p>
             </div>
 
-        
+            <!-- Table of Contents -->
             <div class="toc-section glass-card">
                 <h2>📋 Table of Contents</h2>
                 <div class="toc-grid">
@@ -80,14 +77,14 @@ session_start();
                 </div>
             </div>
 
-            
+            <!-- Video Guidelines Section -->
             <section class="video-section">
                 <div class="section-header">
                     <h2>📹 Video Guidelines</h2>
                     <p>Watch step-by-step video tutorials in your preferred language</p>
                 </div>
                 <div class="video-container glass-card">
-                    
+                    <!-- Language Tabs -->
                     <div class="language-tabs">
                         <button class="language-tab active" data-lang="sinhala">
                             <span class="tab-icon">🇱🇰</span>
@@ -103,15 +100,15 @@ session_start();
                         </button>
                     </div>
 
-                    
+                    <!-- Video Content Area -->
                     <div class="video-content">
-                        
+                        <!-- Sinhala Video -->
                         <div class="video-wrapper active" id="video-sinhala">
                             <div class="video-frame">
                                 <iframe 
                                     width="100%" 
                                     height="500" 
-                                    src="YOUR_SINHALA_VIDEO_URL_HERE" 
+                                    src="https://www.youtube.com/embed/BvmAk6c6zXw" 
                                     title="Sinhala License Application Guide"
                                     frameborder="0" 
                                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
@@ -124,13 +121,13 @@ session_start();
                             </div>
                         </div>
 
-                        
+                        <!-- Tamil Video -->
                         <div class="video-wrapper" id="video-tamil">
                             <div class="video-frame">
                                 <iframe 
                                     width="100%" 
                                     height="500" 
-                                    src="YOUR_TAMIL_VIDEO_URL_HERE" 
+                                    src="https://www.youtube.com/embed/w_O6eMpWMcY" 
                                     title="Tamil License Application Guide"
                                     frameborder="0" 
                                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
@@ -143,13 +140,13 @@ session_start();
                             </div>
                         </div>
 
-                        
+                        <!-- English Video -->
                         <div class="video-wrapper" id="video-english">
                             <div class="video-frame">
                                 <iframe 
                                     width="100%" 
                                     height="500" 
-                                    src="YOUR_ENGLISH_VIDEO_URL_HERE" 
+                                    src="https://www.youtube.com/embed/yhksFAe4uk4"
                                     title="English License Application Guide"
                                     frameborder="0" 
                                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
@@ -165,7 +162,7 @@ session_start();
                 </div>
             </section>
 
-            
+            <!-- Eligibility Requirements -->
             <section id="eligibility" class="guideline-section">
                 <div class="section-header">
                     <h2>✅ Eligibility Requirements</h2>
@@ -221,7 +218,7 @@ session_start();
                 </div>
             </section>
 
-            
+            <!-- Required Documents -->
             <section id="documents" class="guideline-section">
                 <div class="section-header">
                     <h2>📄 Required Documents</h2>
@@ -302,7 +299,7 @@ session_start();
                 </div>
             </section>
 
-            
+            <!-- Application Process -->
             <section id="application" class="guideline-section">
                 <div class="section-header">
                     <h2>📝 Application Process</h2>
@@ -379,7 +376,7 @@ session_start();
                 </div>
             </section>
 
-        
+            <!-- Theory Test -->
             <section id="theory" class="guideline-section">
                 <div class="section-header">
                     <h2>📚 Theory Test Guidelines</h2>
@@ -465,7 +462,7 @@ session_start();
                 </div>
             </section>
 
-            
+            <!-- Practical Test -->
             <section id="practical" class="guideline-section">
                 <div class="section-header">
                     <h2>🚗 Practical Test Guidelines</h2>
@@ -556,7 +553,7 @@ session_start();
                 </div>
             </section>
 
-            
+            <!-- Fees & Payment -->
             <section id="fees" class="guideline-section">
                 <div class="section-header">
                     <h2>💳 Fees & Payment</h2>
@@ -640,7 +637,7 @@ session_start();
                 </div>
             </section>
 
-            
+            <!-- Contact Support -->
             <div class="support-section glass-card">
                 <div class="support-content">
                     <div class="support-icon">💬</div>
@@ -657,7 +654,7 @@ session_start();
         </div>
     </main>
 
-    
+    <!-- Footer -->
     <footer class="footer">
         <div class="container">
             <div class="footer-content">
@@ -689,7 +686,7 @@ session_start();
                         <li><a href="#">Terms of Service</a></li>
                         <li><a href="#">Cookie Policy</a></li>
                     </ul>
-                </div> 
+                </div>
             </div>
             <div class="footer-bottom">
                 <p>&copy; 2025 LicenseXpress. All rights reserved.</p>
