@@ -1,21 +1,24 @@
 
-
 document.addEventListener('DOMContentLoaded', function() {
-    
+   
     if (!LicenseXpress.checkAuth()) {
         window.location.href = 'login.php';
         return;
     }
 
     
-    initializeScheduleTheory();
+    initializeRescheduleExam();
 });
 
-function initializeScheduleTheory() {
+function initializeRescheduleExam() {
     const currentUser = LicenseXpress.getCurrentUser();
+    const tests = JSON.parse(localStorage.getItem('tests') || '{}');
     
     
     updateUserInfo(currentUser);
+
+   
+    loadPreviousAttempt(tests);
 
     
     initializeCalendar();
@@ -42,6 +45,24 @@ function updateUserInfo(user) {
     }
 }
 
+function loadPreviousAttempt(tests) {
+    const previousScore = document.getElementById('previousScore');
+    const previousDate = document.getElementById('previousDate');
+    const previousTime = document.getElementById('previousTime');
+    const attemptCount = document.getElementById('attemptCount');
+
+    if (tests.theory) {
+        const score = tests.theory.score || 0;
+        const total = 50;
+        const percentage = Math.round((score / total) * 100);
+        
+        previousScore.textContent = `${score}/${total} (${percentage}%)`;
+        previousDate.textContent = LicenseXpress.formatDate(tests.theory.passedDate);
+        previousTime.textContent = '45 minutes';
+        attemptCount.textContent = tests.theory.attempts || 1;
+    }
+}
+
 function initializeCalendar() {
     const calendarMonth = document.getElementById('calendarMonth');
     const calendarDays = document.getElementById('calendarDays');
@@ -52,7 +73,7 @@ function initializeCalendar() {
     let currentMonth = currentDate.getMonth();
     let currentYear = currentDate.getFullYear();
 
-   
+    
     function renderCalendar() {
         const firstDay = new Date(currentYear, currentMonth, 1);
         const lastDay = new Date(currentYear, currentMonth + 1, 0);
@@ -95,9 +116,9 @@ function initializeCalendar() {
 
             
             const minBookingDate = new Date();
-            minBookingDate.setDate(minBookingDate.getDate() + 2);
+            minBookingDate.setDate(minBookingDate.getDate() + 1);
             if (date < minBookingDate) {
-                dayElement.classList.add('too-soon');
+                dayElement.classList.add('disabled');
             }
 
             
@@ -109,7 +130,7 @@ function initializeCalendar() {
         }
     }
 
-    
+
     function selectDate(date, element) {
         
         document.querySelectorAll('.calendar-day.selected').forEach(day => {
@@ -132,8 +153,8 @@ function initializeCalendar() {
         };
         selectedDateElement.textContent = date.toLocaleDateString('en-US', dateOptions);
 
-       
-        updateBookingSummary(date, null);
+        
+        updateRescheduleSummary(date, null);
 
         LicenseXpress.showToast('✅ Date selected. Choose a time slot.', 'success');
     }
@@ -157,7 +178,6 @@ function initializeCalendar() {
         renderCalendar();
     });
 
-   
     renderCalendar();
 }
 
@@ -170,70 +190,13 @@ function showTimeSlotsSection(selectedDate) {
     timeSlotsLoading.classList.remove('hidden');
     timeSlotsGrid.classList.add('hidden');
 
-   
+    
     setTimeout(() => {
         loadTimeSlots(selectedDate);
     }, 1200);
 }
 
 function loadTimeSlots(selectedDate) {
-    const timeSlotsLoading = document.getElementById('timeSlotsLoading');
-    const timeSlotsGrid = document.getElementById('timeSlotsGrid');
-
-    
-    timeSlotsLoading.classList.remove('hidden');
-    timeSlotsGrid.classList.add('hidden');
-
-    
-    fetch(`api_booking.php?action=get_time_slots&type=theory&date=${selectedDate}`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                displayTimeSlots(data.data);
-            } else {
-                console.error('Failed to load time slots:', data.message);
-                LicenseXpress.showToast('Failed to load time slots', 'error');
-                
-                displayFallbackTimeSlots();
-            }
-        })
-        .catch(error => {
-            console.error('Error loading time slots:', error);
-            LicenseXpress.showToast('Error loading time slots', 'error');
-          
-            displayFallbackTimeSlots();
-        });
-}
-
-function displayTimeSlots(timeSlots) {
-    const timeSlotsLoading = document.getElementById('timeSlotsLoading');
-    const timeSlotsGrid = document.getElementById('timeSlotsGrid');
-
-   
-    timeSlotsLoading.classList.add('hidden');
-    timeSlotsGrid.classList.remove('hidden');
-
-    timeSlotsGrid.innerHTML = '';
-
-    timeSlots.forEach(slot => {
-        const slotElement = document.createElement('div');
-        slotElement.className = `time-slot ${slot.available ? 'available' : 'booked'}`;
-        
-        slotElement.innerHTML = `
-            <div class="time-slot-icon">${slot.icon}</div>
-            <div class="time-slot-time">${slot.time}</div>
-            <div class="time-slot-status">${slot.available ? '✓ Available' : '✗ Booked'}</div>
-        `;
-
-        if (slot.available) {
-            slotElement.addEventListener('click', () => selectTimeSlot(slot.time, slotElement));
-        }
-
-        timeSlotsGrid.appendChild(slotElement);
-    });
-}
-
-function displayFallbackTimeSlots() {
     const timeSlotsLoading = document.getElementById('timeSlotsLoading');
     const timeSlotsGrid = document.getElementById('timeSlotsGrid');
 
@@ -275,7 +238,7 @@ function displayFallbackTimeSlots() {
 }
 
 function selectTimeSlot(time, element) {
-    
+   
     document.querySelectorAll('.time-slot.selected').forEach(slot => {
         slot.classList.remove('selected');
     });
@@ -284,26 +247,26 @@ function selectTimeSlot(time, element) {
     element.classList.add('selected');
 
     
-    showBookingSummary();
-
-   
-    const selectedDateElement = document.getElementById('selectedDate');
-    const selectedDate = new Date(selectedDateElement.textContent);
-    updateBookingSummary(selectedDate, time);
-
-    LicenseXpress.showToast('✅ Time slot selected. Review your booking.', 'success');
-}
-
-function showBookingSummary() {
-    const bookingSummary = document.getElementById('bookingSummary');
-    bookingSummary.classList.remove('hidden');
+    showRescheduleSummary();
 
     
-    const confirmButton = document.getElementById('confirmBooking');
+    const selectedDateElement = document.getElementById('selectedDate');
+    const selectedDate = new Date(selectedDateElement.textContent);
+    updateRescheduleSummary(selectedDate, time);
+
+    LicenseXpress.showToast('✅ Time slot selected. Review your reschedule.', 'success');
+}
+
+function showRescheduleSummary() {
+    const rescheduleSummary = document.getElementById('rescheduleSummary');
+    rescheduleSummary.classList.remove('hidden');
+
+    
+    const confirmButton = document.getElementById('confirmReschedule');
     confirmButton.disabled = false;
 }
 
-function updateBookingSummary(selectedDate, selectedTime) {
+function updateRescheduleSummary(selectedDate, selectedTime) {
     const summaryDate = document.getElementById('summaryDate');
     const summaryTime = document.getElementById('summaryTime');
 
@@ -327,9 +290,9 @@ function initializeTimeSlots() {
 }
 
 function initializeNavigation() {
-   
-    const confirmButton = document.getElementById('confirmBooking');
-    confirmButton.addEventListener('click', confirmBooking);
+    
+    const confirmButton = document.getElementById('confirmReschedule');
+    confirmButton.addEventListener('click', confirmReschedule);
 
     
     const goToDashboard = document.getElementById('goToDashboard');
@@ -344,8 +307,8 @@ function initializeNavigation() {
     });
 }
 
-function confirmBooking() {
-    const confirmButton = document.getElementById('confirmBooking');
+function confirmReschedule() {
+    const confirmButton = document.getElementById('confirmReschedule');
     const btnText = confirmButton.querySelector('.btn-text');
     const btnSpinner = confirmButton.querySelector('.btn-spinner');
 
@@ -360,105 +323,53 @@ function confirmBooking() {
 
     
     confirmButton.disabled = true;
-    btnText.textContent = 'Processing Booking...';
+    btnText.textContent = 'Processing Reschedule...';
     btnSpinner.classList.remove('hidden');
 
     
     setTimeout(() => {
-        processBooking(selectedDateElement.textContent, selectedTimeElement.textContent);
+        processReschedule(selectedDateElement.textContent, selectedTimeElement.textContent);
     }, 2500);
 }
 
-function processBooking(selectedDate, selectedTime) {
-    const currentUser = LicenseXpress.getCurrentUser();
+function processReschedule(selectedDate, selectedTime) {
+    
+    const tests = JSON.parse(localStorage.getItem('tests') || '{}');
     const applicationState = JSON.parse(localStorage.getItem('applicationState') || '{}');
-    
-    if (!applicationState.applicationId) {
-        LicenseXpress.showToast('Application ID not found. Please refresh and try again.', 'error');
-        return;
-    }
 
     
-    const dateObj = new Date(selectedDate);
-    const formattedDate = dateObj.toISOString().split('T')[0]; 
-    
-    
-    const time24h = convertTo24Hour(selectedTime);
-    
-    
-    const bookingData = {
-        application_id: applicationState.applicationId,
-        scheduled_date: formattedDate,
-        scheduled_time: time24h
-    };
+    tests.theory.date = new Date(selectedDate).toISOString();
+    tests.theory.time = selectedTime;
+    tests.theory.scheduled = true;
+    tests.theory.attempts = (tests.theory.attempts || 0) + 1;
 
-    fetch('api_booking.php?action=book_theory_test', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(bookingData)
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            
-            const tests = JSON.parse(localStorage.getItem('tests') || '{}');
-            
-            tests.theory = {
-                scheduled: true,
-                date: formattedDate,
-                time: selectedTime,
-                testLink: data.data.test_link,
-                score: null,
-                passed: false,
-                passedDate: null,
-                attempts: 0
-            };
-
-            applicationState.status = 'theory_scheduled';
-            applicationState.progress = 60;
-
-            localStorage.setItem('tests', JSON.stringify(tests));
-            localStorage.setItem('applicationState', JSON.stringify(applicationState));
-
-            
-            LicenseXpress.sendEmailNotification(
-                currentUser?.email || 'user@example.com',
-                'Theory Test Scheduled',
-                `Your theory test has been scheduled for ${selectedDate} at ${selectedTime}. You will receive the test link 1 hour before your scheduled time.`
-            );
-
-            LicenseXpress.sendSMSNotification(
-                currentUser?.phone || '+94771234567',
-                `Your theory test is scheduled for ${selectedDate} at ${selectedTime}. Test link will be sent 1 hour before.`
-            );
-
-           
-            showSuccessModal();
-        } else {
-            LicenseXpress.showToast(data.message || 'Failed to book theory test', 'error');
-        }
-    })
-    .catch(error => {
-        console.error('Error booking theory test:', error);
-        LicenseXpress.showToast('Error booking theory test. Please try again.', 'error');
-    });
-}
-
-function convertTo24Hour(time12h) {
-    const [time, modifier] = time12h.split(' ');
-    let [hours, minutes] = time.split(':');
     
-    if (hours === '12') {
-        hours = '00';
-    }
+    tests.theory.score = null;
+    tests.theory.passed = false;
+    tests.theory.passedDate = null;
+
     
-    if (modifier === 'PM') {
-        hours = parseInt(hours, 10) + 12;
-    }
+    applicationState.status = 'theory_scheduled';
+    applicationState.progress = 60;
+
+    localStorage.setItem('tests', JSON.stringify(tests));
+    localStorage.setItem('applicationState', JSON.stringify(applicationState));
+
     
-    return `${hours.toString().padStart(2, '0')}:${minutes}:00`;
+    const currentUser = LicenseXpress.getCurrentUser();
+    LicenseXpress.sendEmailNotification(
+        currentUser?.email || 'user@example.com',
+        'Theory Exam Rescheduled',
+        `Your theory exam has been rescheduled to ${selectedDate} at ${selectedTime}. You can now take your exam on the new scheduled date.`
+    );
+
+    LicenseXpress.sendSMSNotification(
+        currentUser?.phone || '+94771234567',
+        `Your theory exam has been rescheduled to ${selectedDate} at ${selectedTime}.`
+    );
+
+   
+    showSuccessModal();
 }
 
 function showSuccessModal() {
@@ -466,27 +377,13 @@ function showSuccessModal() {
     successModal.classList.remove('hidden');
 
     
-    const confirmButton = document.getElementById('confirmBooking');
+    const confirmButton = document.getElementById('confirmReschedule');
     const btnText = confirmButton.querySelector('.btn-text');
     const btnSpinner = confirmButton.querySelector('.btn-spinner');
 
     confirmButton.disabled = false;
-    btnText.textContent = 'Confirm Booking →';
+    btnText.textContent = 'Confirm Reschedule (Rs. 500)';
     btnSpinner.classList.add('hidden');
 
-    LicenseXpress.showToast('✅ Booking confirmed successfully!', 'success');
+    LicenseXpress.showToast('✅ Exam rescheduled successfully!', 'success');
 }
-
-
-document.addEventListener('click', function(e) {
-    if (e.target.classList.contains('too-soon')) {
-        LicenseXpress.showToast('⚠️ Tests must be scheduled at least 2 days in advance', 'warning');
-    }
-});
-
-
-document.addEventListener('click', function(e) {
-    if (e.target.classList.contains('disabled')) {
-        LicenseXpress.showToast('⚠️ Cannot select past dates', 'warning');
-    }
-});
