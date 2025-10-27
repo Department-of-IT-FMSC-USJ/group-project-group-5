@@ -1,6 +1,5 @@
 <?php
 
-ini_set('display_errors', 0);
 error_reporting(E_ALL);
 
 header('Content-Type: application/json');
@@ -46,18 +45,18 @@ try {
         exit;
     }
     
-   
-    $sql = "SELECT * FROM applications WHERE user_id = :user_id ORDER BY created_at DESC LIMIT 1";
+    
+    $sql = "SELECT * FROM applications WHERE user_id = :user_id ORDER BY progress DESC, created_at DESC LIMIT 1";
     $application = $db->fetch($sql, ['user_id' => $user['id']]);
     
-   
+    
     $payment = null;
     if ($application) {
         $sql = "SELECT * FROM payments WHERE application_id = :application_id LIMIT 1";
         $payment = $db->fetch($sql, ['application_id' => $application['id']]);
     }
     
-   
+    
     $documents = [];
     if ($application) {
         $sql = "SELECT * FROM application_documents WHERE application_id = :application_id";
@@ -71,21 +70,21 @@ try {
         $theoryTest = $db->fetch($sql, ['application_id' => $application['id']]);
     }
     
-   
+    
     $practicalTest = null;
     if ($application) {
         $sql = "SELECT * FROM practical_tests WHERE application_id = :application_id ORDER BY created_at DESC LIMIT 1";
         $practicalTest = $db->fetch($sql, ['application_id' => $application['id']]);
     }
     
-   
+    
     $license = null;
     if ($application) {
         $sql = "SELECT * FROM licenses WHERE application_id = :application_id LIMIT 1";
         $license = $db->fetch($sql, ['application_id' => $application['id']]);
     }
     
-  
+    
     $response = [
         'success' => true,
         'user' => [

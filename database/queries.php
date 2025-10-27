@@ -11,7 +11,7 @@ class LicenseXpressQueries {
         $this->db = $db;
     }
     
-    
+    // user management 
     
     public function createUser($userData) {
         $sql = "INSERT INTO users (user_id, nic, password_hash, email, phone, full_name, date_of_birth, gender, district, transmission_type) 
@@ -54,9 +54,8 @@ class LicenseXpressQueries {
     }
     
     
-    // APPLICATION 
-    
-    
+    // Application management
+   
     public function createApplication($applicationData) {
         $sql = "INSERT INTO applications (application_id, user_id, status, progress) 
                 VALUES (:application_id, :user_id, :status, :progress)";
@@ -110,7 +109,7 @@ class LicenseXpressQueries {
     }
     
     
-    // DOCUMENTS
+    // doc management
    
     
     public function uploadDocument($documentData) {
@@ -136,7 +135,7 @@ class LicenseXpressQueries {
     }
     
     
-    // PAYMENTS
+    // payment management
     
     
     public function createPayment($paymentData) {
@@ -160,9 +159,8 @@ class LicenseXpressQueries {
         return $this->db->fetch($sql, ['application_id' => $applicationId]);
     }
     
-  
-    // THEORY TEST 
-   
+ 
+    // Theory test queries
     
     public function scheduleTheoryTest($testData) {
         $sql = "INSERT INTO theory_tests (application_id, scheduled_date, scheduled_time, test_link) 
@@ -210,17 +208,64 @@ class LicenseXpressQueries {
         } catch (Exception $e) {
             $this->db->rollback();
             throw $e;
-        }
-    }
-    
-    
-    // PRACTICAL TEST QUERIES
+        }    }
     
     
     public function schedulePracticalTest($testData) {
         $sql = "INSERT INTO practical_tests (application_id, test_center_id, scheduled_date, scheduled_time, examiner_id, vehicle_type, vehicle_details) 
                 VALUES (:application_id, :test_center_id, :scheduled_date, :scheduled_time, :examiner_id, :vehicle_type, :vehicle_details)";
         return $this->db->query($sql, $testData);
+    }
+    
+   
+    
+    public function getAvailableTimeSlots($slotType, $date, $testCenterId = null) {
+        $sql = "SELECT ts.slot_time, ts.max_capacity, 
+                       COALESCE(bs.booked_count, 0) as booked_count
+                FROM time_slots ts
+                LEFT JOIN (
+                    SELECT slot_time, COUNT(*) as booked_count
+                    FROM booked_slots 
+                    WHERE slot_date = :date AND slot_type = :slot_type";
+        
+        $params = ['date' => $date, 'slot_type' => $slotType];
+        
+        if ($testCenterId && $slotType === 'practical') {
+            $sql .= " AND test_center_id = :test_center_id";
+            $params['test_center_id'] = $testCenterId;
+        }
+        
+        $sql .= " GROUP BY slot_time
+                ) bs ON ts.slot_time = bs.slot_time
+                WHERE ts.slot_type = :slot_type AND ts.is_active = 1
+                ORDER BY ts.slot_time";
+        
+        return $this->db->fetchAll($sql, $params);
+    }
+    
+    public function bookTimeSlot($slotData) {
+        $sql = "INSERT INTO booked_slots (slot_date, slot_time, slot_type, application_id, test_center_id) 
+                VALUES (:slot_date, :slot_time, :slot_type, :application_id, :test_center_id)";
+        return $this->db->query($sql, $slotData);
+    }
+    
+    public function checkSlotAvailability($slotDate, $slotTime, $slotType, $testCenterId = null) {
+        $sql = "SELECT COUNT(*) as count FROM booked_slots 
+                WHERE slot_date = :slot_date AND slot_time = :slot_time AND slot_type = :slot_type";
+        
+        $params = [
+            'slot_date' => $slotDate,
+            'slot_time' => $slotTime,
+            'slot_type' => $slotType
+        ];
+        
+        if ($testCenterId && $slotType === 'practical') {
+            $sql .= " AND test_center_id = :test_center_id";
+            $params['test_center_id'] = $testCenterId;
+        }
+        
+        $result = $this->db->fetch($sql, $params);
+        return $result['count'] === 0;
     }
     
     public function getPracticalTestByApplicationId($applicationId) {
@@ -243,8 +288,7 @@ class LicenseXpressQueries {
         ]);
     }
     
-    
-    // TEST CENTER QUERIES
+
     
     public function getTestCenters() {
         $sql = "SELECT * FROM test_centers WHERE is_active = 1 ORDER BY name";
@@ -261,9 +305,6 @@ class LicenseXpressQueries {
         return $this->db->fetchAll($sql, ['center_id' => $centerId]);
     }
     
-   
-    // LICENSE 
-    
     
     public function createLicense($licenseData) {
         $sql = "INSERT INTO licenses (license_number, application_id, user_id, category, transmission_type, issue_date, expiry_date, digital_url, qr_code) 
@@ -279,8 +320,6 @@ class LicenseXpressQueries {
     }
     
     
-    // ADMIN 
-   
     
     public function getAdminByUsername($username) {
         $sql = "SELECT * FROM admin_users WHERE username = :username AND is_active = 1";
@@ -301,8 +340,7 @@ class LicenseXpressQueries {
         ]);
     }
     
-    
-    // NOTIFICATIONS
+    // NOTIFICATION QUERIES
    
     
     public function createNotification($notificationData) {
@@ -322,6 +360,8 @@ class LicenseXpressQueries {
     }
     
     
+    // system settings queries
+   
     
     public function getSystemSetting($key) {
         $sql = "SELECT setting_value FROM system_settings WHERE setting_key = :key AND is_active = 1";
@@ -334,7 +374,8 @@ class LicenseXpressQueries {
         return $this->db->fetchAll($sql);
     }
     
-   
+    
+    // statistics queries
     
     public function getApplicationStats() {
         $sql = "SELECT 
@@ -370,5 +411,6 @@ class LicenseXpressQueries {
     }
 }
 
+// Global queries instance
 $queries = new LicenseXpressQueries();
 ?>

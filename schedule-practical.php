@@ -1,5 +1,77 @@
 <?php
 session_start();
+
+
+if (!isset($_SESSION['user_id'])) {
+    
+    header('Location: login.php');
+    exit;
+} else {
+    require_once 'database/database_connection.php';
+
+    
+    $db = new Database();
+    $userId = $_SESSION['user_id'];
+
+    // Get spplication and theroy test info
+    $sql = "SELECT a.*, u.full_name, u.nic, tt.scheduled_date as theory_date, tt.scheduled_time as theory_time, tt.completed_at
+            FROM applications a
+            JOIN users u ON a.user_id = u.id
+            LEFT JOIN theory_tests tt ON a.id = tt.application_id
+            WHERE u.user_id = :user_id
+            ORDER BY a.created_at DESC
+            LIMIT 1";
+    $application = $db->fetch($sql, ['user_id' => $_SESSION['user_id']]);
+
+    if (!$application) {
+        
+        $autoScheduledDate = date('Y-m-d', strtotime('+3 months'));
+        $autoScheduledTime = '10:00:00';
+        $practicalTest = null;
+    } else {
+        // practical exam date calculation(+three months)
+        $theoryCompletedDate = $application['completed_at'] ? $application['completed_at'] : ($application['theory_date'] ? $application['theory_date'] : date('Y-m-d'));
+        $autoScheduledDate = date('Y-m-d', strtotime($theoryCompletedDate . ' +3 months'));
+        $autoScheduledTime = '10:00:00'; // Default time
+
+        // Check if already scheduled
+        $sql = "SELECT * FROM practical_tests WHERE application_id = :application_id";
+        $practicalTest = $db->fetch($sql, ['application_id' => $application['id']]);
+        
+        
+        if (!$practicalTest) {
+            
+            $sql = "SELECT id FROM test_centers WHERE is_active = 1 ORDER BY id LIMIT 1";
+            $defaultTestCenter = $db->fetch($sql);
+            
+            if ($defaultTestCenter) {
+                // Insert practical test record
+                $sql = "INSERT INTO practical_tests (application_id, test_center_id, scheduled_date, scheduled_time, vehicle_type, vehicle_details) 
+                        VALUES (:application_id, :test_center_id, :scheduled_date, :scheduled_time, :vehicle_type, :vehicle_details)";
+                
+                $practicalTestData = [
+                    'application_id' => $application['id'],
+                    'test_center_id' => $defaultTestCenter['id'],
+                    'scheduled_date' => $autoScheduledDate,
+                    'scheduled_time' => $autoScheduledTime,
+                    'vehicle_type' => 'own',
+                    'vehicle_details' => json_encode([])
+                ];
+                
+                $db->query($sql, $practicalTestData);
+                
+                // Update status of application
+                $sql = "UPDATE applications SET status = 'practical_scheduled', progress = 85, updated_at = NOW() 
+                        WHERE id = :application_id";
+                $db->query($sql, ['application_id' => $application['id']]);
+                
+                // Fetch rescheduled date
+                $sql = "SELECT * FROM practical_tests WHERE application_id = :application_id";
+                $practicalTest = $db->fetch($sql, ['application_id' => $application['id']]);
+            }
+        }
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -7,11 +79,35 @@ session_start();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Schedule Practical Test - LicenseXpress</title>
-    <link rel="stylesheet" href="assets/css/styles.css">
-    <link rel="stylesheet" href="assets/css/schedule-practical.css">
+    <link rel="stylesheet" href="assets/css/styles.css?v=1.0">
+    <link rel="stylesheet" href="assets/css/schedule-practical.css?v=1.0">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        
+        window.applicationData = {
+            applicationId: '<?php echo $application ? $application['application_id'] : 'APP-DEMO-001'; ?>',
+            userName: '<?php echo $application ? htmlspecialchars($application['full_name']) : 'Demo User'; ?>',
+            userNIC: '<?php echo $application ? htmlspecialchars($application['nic']) : '200012345678'; ?>',
+            theoryDate: '<?php echo $application && $application['completed_at'] ? $application['completed_at'] : date('Y-m-d'); ?>',
+            autoScheduledDate: '<?php echo $autoScheduledDate; ?>',
+            autoScheduledTime: '<?php echo $autoScheduledTime; ?>',
+            hasPracticalScheduled: <?php echo $practicalTest ? 'true' : 'false'; ?>,
+            practicalDate: '<?php echo $practicalTest ? $practicalTest['scheduled_date'] : $autoScheduledDate; ?>',
+            practicalTime: '<?php echo $practicalTest ? $practicalTest['scheduled_time'] : $autoScheduledTime; ?>',
+            testCenterId: '<?php echo $practicalTest ? $practicalTest['test_center_id'] : ''; ?>',
+            rescheduleCount: <?php echo $practicalTest ? $practicalTest['reschedule_count'] : 0; ?>,
+            sessionId: '<?php echo session_id(); ?>',
+            debugInfo: {
+                userId: '<?php echo $userId; ?>',
+                sessionUserId: '<?php echo $_SESSION['user_id']; ?>',
+                applicationId: '<?php echo $application ? $application['id'] : 'null'; ?>',
+                applicationIdString: '<?php echo $application ? $application['application_id'] : 'null'; ?>',
+                hasApplication: <?php echo $application ? 'true' : 'false'; ?>
+            }
+        };
+    </script>
 </head>
 <body>
     
@@ -30,10 +126,12 @@ session_start();
                 </nav>
                 <div class="header-actions">
                     <div class="user-info">
-                        <div class="user-avatar" id="userAvatar">J</div>
+                        <div class="user-avatar" id="userAvatar">
+                            <?php echo strtoupper(substr($_SESSION['full_name'], 0, 1)); ?>
+                        </div>
                         <div class="user-details">
-                            <div class="user-name" id="userName">John Doe</div>
-                            <div class="user-nic" id="userNIC">200012345678</div>
+                            <div class="user-name" id="userName"><?php echo htmlspecialchars($_SESSION['full_name']); ?></div>
+                            <div class="user-nic" id="userNIC"><?php echo htmlspecialchars($_SESSION['nic']); ?></div>
                         </div>
                     </div>
                     <button class="logout-btn" id="logoutBtn" title="Logout">
@@ -54,67 +152,73 @@ session_start();
     </div>
 
     
-    <div class="progress-steps">
-        <div class="container">
-            <div class="steps-container">
-                <div class="step completed">
-                    <div class="step-icon">✓</div>
-                    <div class="step-label">Theory Passed</div>
-                </div>
-                <div class="step completed">
-                    <div class="step-icon">✓</div>
-                    <div class="step-label">Ready for Practical</div>
-                </div>
-                <div class="step active">
-                    <div class="step-icon">3</div>
-                    <div class="step-label">Schedule Practical</div>
-                </div>
-                <div class="step">
-                    <div class="step-icon">4</div>
-                    <div class="step-label">Confirmation</div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-
     <main class="schedule-main">
         <div class="container">
             <div class="schedule-container">
                 
-                <div class="schedule-header">
-                    <h1 class="schedule-title">Schedule Your Practical Driving Test</h1>
-                    <p class="schedule-subtitle">Select your preferred test center, date, and time for your practical examination</p>
+                <div class="congratulations-section">
+                    <div class="congrats-card glass-card">
+                        <div class="congrats-icon">🎉</div>
+                        <h1 class="congrats-title">Congratulations, <?php echo htmlspecialchars($_SESSION['full_name']); ?>!</h1>
+                        <p class="congrats-message">You have successfully passed your theory examination</p>
+                        
+                        <div class="scheduled-info">
+                            <h3>Your Practical Test is Scheduled</h3>
+                            <div class="schedule-details" id="currentScheduleDetails">
+                                <div class="detail-item">
+                                    <div class="detail-icon">📍</div>
+                                    <div class="detail-content">
+                                        <div class="detail-label">Test Center</div>
+                                        <div class="detail-value" id="scheduledCenter">
+                                            Colombo Werahera
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="detail-item">
+                                    <div class="detail-icon">📅</div>
+                                    <div class="detail-content">
+                                        <div class="detail-label">Date</div>
+                                        <div class="detail-value" id="scheduledDate">
+                                            <?php 
+                                            $displayDate = $practicalTest ? $practicalTest['scheduled_date'] : $autoScheduledDate;
+                                            echo date('l, F j, Y', strtotime($displayDate)); 
+                                            ?>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="detail-item">
+                                    <div class="detail-icon">⏰</div>
+                                    <div class="detail-content">
+                                        <div class="detail-label">Time</div>
+                                        <div class="detail-value" id="scheduledTime">
+                                            <?php 
+                                            $displayTime = $practicalTest ? $practicalTest['scheduled_time'] : $autoScheduledTime;
+                                            echo date('g:i A', strtotime($displayTime)); 
+                                            ?>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <p class="auto-schedule-note">
+                                <?php if (!$practicalTest): ?>
+                                    <em>This is automatically scheduled 3 months from your theory exam completion date.</em>
+                                <?php endif; ?>
+                            </p>
+                        </div>
+                    </div>
                 </div>
 
                 
-                <div class="info-alerts">
-                    <div class="info-alert">
-                        <div class="alert-icon">ℹ️</div>
-                        <div class="alert-content">
-                            <strong>Important Information:</strong>
-                            <p>The Practical Test must be conducted at an approved test center with a certified DMT examiner. You must bring your own vehicle or use the center's vehicle (additional fee applies).</p>
-                        </div>
-                    </div>
-                    <div class="warning-alert">
-                        <div class="alert-icon">⚠️</div>
-                        <div class="alert-content">
-                            <strong>Test Requirements:</strong>
-                            <ul>
-                                <li>• Valid learner's permit required</li>
-                                <li>• Theory test pass certificate required</li>
-                                <li>• Tests must be scheduled at least 7 days in advance</li>
-                                <li>• Bring your NIC and theory certificate on test day</li>
-                                <li>• Arrive 30 minutes before scheduled time</li>
-                            </ul>
-                        </div>
-                    </div>
+                <div class="reschedule-section">
+                    <button class="btn btn-secondary btn-reschedule" id="rescheduleBtn">
+                        <span>📅</span> Reschedule Practical Test
+                    </button>
                 </div>
 
                 
-                <div class="test-center-section">
+                <div class="test-center-section hidden" id="testCenterSection">
                     <div class="section-header">
-                        <h2 class="section-title">📍 Step 1: Select Test Center</h2>
+                        <h2 class="section-title">📍 Select Your Preferred Test Center</h2>
                         <span class="required-badge">Required</span>
                     </div>
                     
@@ -126,9 +230,9 @@ session_start();
                 </div>
 
                 
-                <div class="calendar-section">
+                <div class="calendar-section hidden" id="calendarSection">
                     <div class="section-header">
-                        <h2 class="section-title">📅 Step 2: Choose Your Test Date</h2>
+                        <h2 class="section-title">📅 Choose Your Test Date</h2>
                         <span class="required-badge">Required</span>
                     </div>
                     
@@ -160,16 +264,16 @@ session_start();
                                 <span>Selected</span>
                             </div>
                             <div class="legend-item">
-                                <div class="legend-color unavailable"></div>
-                                <span>Unavailable</span>
-                            </div>
-                            <div class="legend-item">
                                 <div class="legend-color today"></div>
                                 <span>Today</span>
                             </div>
                             <div class="legend-item">
+                                <div class="legend-color original-date">📅</div>
+                                <span>Original Date</span>
+                            </div>
+                            <div class="legend-item">
                                 <div class="legend-color too-soon">🔒</div>
-                                <span>Too Soon (7-day minimum)</span>
+                                <span>Before Original Date</span>
                             </div>
                         </div>
                     </div>
@@ -178,7 +282,7 @@ session_start();
                 
                 <div class="time-slots-section hidden" id="timeSlotsSection">
                     <div class="section-header">
-                        <h2 class="section-title">⏰ Step 3: Select Time Slot</h2>
+                        <h2 class="section-title">⏰ Select Time Slot</h2>
                         <span class="required-badge">Required</span>
                     </div>
                     
@@ -198,15 +302,20 @@ session_start();
                         </div>
                         
                         <div class="time-slots-grid hidden" id="timeSlotsGrid">
-                            
+                           
                         </div>
+                    </div>
+
+                    <div class="reschedule-actions">
+                        <button class="btn btn-secondary" id="cancelReschedule">Cancel</button>
+                        <button class="btn btn-primary" id="confirmReschedule" disabled>Confirm Reschedule</button>
                     </div>
                 </div>
 
-            
+                
                 <div class="vehicle-section hidden" id="vehicleSection">
                     <div class="section-header">
-                        <h2 class="section-title">🚗 Step 4: Vehicle Selection</h2>
+                        <h2 class="section-title">🚗 Vehicle Selection</h2>
                         <span class="required-badge">Required</span>
                     </div>
                     
@@ -257,67 +366,9 @@ session_start();
                     </div>
                 </div>
 
-        
-                <div class="booking-summary hidden" id="bookingSummary">
-                    <div class="section-header">
-                        <h2 class="section-title">📋 Booking Summary</h2>
-                    </div>
-                    
-                    <div class="summary-cards">
-                        <div class="summary-card glass-card">
-                            <div class="card-icon">📍</div>
-                            <div class="card-content">
-                                <div class="card-label">Test Center</div>
-                                <div class="card-value" id="summaryCenter">Colombo - Werahera Test Center</div>
-                            </div>
-                        </div>
-                        <div class="summary-card glass-card">
-                            <div class="card-icon">📅</div>
-                            <div class="card-content">
-                                <div class="card-label">Test Date</div>
-                                <div class="card-value" id="summaryDate">Wednesday, February 15, 2025</div>
-                            </div>
-                        </div>
-                        <div class="summary-card glass-card">
-                            <div class="card-icon">⏰</div>
-                            <div class="card-content">
-                                <div class="card-label">Time Slot</div>
-                                <div class="card-value" id="summaryTime">10:00 AM</div>
-                            </div>
-                        </div>
-                        <div class="summary-card glass-card">
-                            <div class="card-icon">🚗</div>
-                            <div class="card-content">
-                                <div class="card-label">Vehicle</div>
-                                <div class="card-value" id="summaryVehicle">Own Vehicle</div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="test-info-box glass-card">
-                        <div class="info-icon">📋</div>
-                        <div class="info-content">
-                            <strong>Test Day Checklist:</strong>
-                            <ul>
-                                <li>• Arrive 30 minutes before your scheduled time</li>
-                                <li>• Bring your NIC and theory certificate</li>
-                                <li>• Ensure vehicle is in good condition</li>
-                                <li>• Wear comfortable clothes and shoes</li>
-                                <li>• Get adequate rest the night before</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-
                 
                 <div class="action-buttons">
                     <a href="dashboard.php" class="btn btn-secondary">← Back to Dashboard</a>
-                    <button class="btn btn-primary btn-large" id="confirmBooking" disabled>
-                        <span class="btn-text">Confirm Practical Test Booking</span>
-                        <div class="btn-spinner hidden">
-                            <div class="spinner"></div>
-                        </div>
-                    </button>
                 </div>
             </div>
         </div>
@@ -328,9 +379,9 @@ session_start();
         <div class="modal-backdrop"></div>
         <div class="modal-content">
             <div class="success-icon">✅</div>
-            <div class="success-title">Practical Test Booked Successfully!</div>
+            <div class="success-title">Practical Test Confirmed Successfully!</div>
             <div class="success-message">
-                Your practical driving test has been successfully scheduled.
+                Your practical driving test has been successfully confirmed.
             </div>
             <div class="success-details">
                 <p><strong>📧 Confirmation email sent</strong></p>
@@ -343,7 +394,8 @@ session_start();
         </div>
     </div>
 
-    <script src="assets/js/app.js"></script>
-    <script src="assets/js/schedule-practical.js"></script>
+    <script src="assets/js/app.js?v=1.0"></script>
+    <script src="assets/js/schedule-practical.js?v=4.0"></script>
 </body>
 </html>
+

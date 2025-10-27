@@ -20,6 +20,7 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - LicenseXpress</title>
     <link rel="stylesheet" href="assets/css/styles.css">
+    <link rel="stylesheet" href="assets/css/dashboard.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -49,7 +50,7 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
         </div>
     </header>
 
-    
+   
     <div class="breadcrumb">
         <div class="container">
             <span class="breadcrumb-item">Dashboard</span>
@@ -152,7 +153,7 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
                 </div>
             </div>
 
-           
+            
             <div class="action-section">
                 <button class="btn btn-primary btn-large btn-action" id="actionButton" onclick="window.location.href='application-form.php';">
                     <span class="btn-text">Start Application</span>
@@ -160,27 +161,54 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
                 </button>
             </div>
 
-            
+           
             <div class="dynamic-content" id="dynamicContent">
                 
             </div>
-
-            
-            <div id="statusDebug"></div>
         </div>
     </main>
 
-    
+  
     <div id="confettiContainer"></div>
 
     <script src="assets/js/app.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             
-          
+           
             LicenseXpress.initializeUserData();
-
             
+            // Check for recent exam results and update status
+            const lastExamResult = JSON.parse(localStorage.getItem('lastExamResult') || 'null');
+            if (lastExamResult && lastExamResult.timestamp) {
+                const examTime = new Date(lastExamResult.timestamp);
+                const now = new Date();
+                const timeDiff = now - examTime;
+                
+                // If exam was completed within the last 5 minutes, update status
+                if (timeDiff < 5 * 60 * 1000) {
+                    console.log('Recent exam completed, updating status...');
+                    if (lastExamResult.passed) {
+                        // Update to theory_passed status
+                        LicenseXpress.showToast('🎉 Congratulations! You passed your theory test!', 'success');
+                        // Refresh the page to show updated status
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 2000);
+                    } else {
+                        // Update to theory_failed status
+                        LicenseXpress.showToast(`Theory test completed. Score: ${lastExamResult.score}/${lastExamResult.total}`, 'info');
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 2000);
+                    }
+                    
+                    // Clear the exam result from localStorage
+                    localStorage.removeItem('lastExamResult');
+                }
+            }
+
+       
             const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
             
             if (!currentUser || !currentUser.nic) {
@@ -189,7 +217,7 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
                 return;
             }
 
-            
+           
             fetch(`get_application_status.php?nic=${encodeURIComponent(currentUser.nic)}`)
                 .then(response => response.json())
                 .then(data => {
@@ -260,12 +288,12 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
                         
                         updateUserInfo(currentUser, applicationState);
 
-                        
+                      
                         updateDashboard(applicationState, userProfile, tests, license);
                     } else {
                         console.error('Failed to fetch application data:', data.error);
                         
-                        
+                      
                         const applicationState = JSON.parse(localStorage.getItem('applicationState') || '{}');
                         const userProfile = JSON.parse(localStorage.getItem('userProfile') || '{}');
                         const tests = JSON.parse(localStorage.getItem('tests') || '{}');
@@ -278,7 +306,7 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
                 .catch(error => {
                     console.error('Error fetching application data:', error);
                     
-                    
+                   
                     const applicationState = JSON.parse(localStorage.getItem('applicationState') || '{}');
                     const userProfile = JSON.parse(localStorage.getItem('userProfile') || '{}');
                     const tests = JSON.parse(localStorage.getItem('tests') || '{}');
@@ -312,37 +340,24 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
             console.log('Dashboard update - Status:', status);
             console.log('Application State:', applicationState);
 
-            
+        
             updateStatusBadge(status);
 
-            
+           
             updateBreadcrumb(status);
 
+          
             updateStatusDetails(applicationState, userProfile, tests, license);
 
-            
             updateTimeline(status, applicationState, tests, license);
 
-            
+           
             updateActionButton(status, applicationState, tests, license);
 
-           
+            
             updateDynamicContent(status, applicationState, userProfile, tests, license);
 
-            
-            const statusDebug = document.getElementById('statusDebug');
-            if (statusDebug) {
-                statusDebug.innerHTML = `
-                    <div style="background: rgba(255, 255, 255, 0.1); padding: 10px; border-radius: 8px; margin: 10px 0; font-size: 12px;">
-                        <strong>Debug Info:</strong><br>
-                        Status: ${status}<br>
-                        Application ID: ${applicationState.applicationId || 'None'}<br>
-                        Submitted Date: ${applicationState.submittedDate || 'None'}
-                    </div>
-                `;
-            }
-
-            
+        
             if (status === 'license_issued') {
                 setTimeout(() => {
                     LicenseXpress.createConfetti();
@@ -353,7 +368,6 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
         function updateStatusBadge(status) {
             const statusBadge = document.getElementById('statusBadge');
             
-          
             if (!statusBadge) {
                 console.log('Status badge element not found - skipping update');
                 return;
@@ -478,11 +492,11 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
 
                 case 'license_issued':
                     statusLabel1.textContent = 'License Number';
-                    statusValue1.textContent = license.number;
+                    statusValue1.textContent = license?.license_number || 'Not issued';
                     statusLabel2.textContent = 'Issue Date';
-                    statusValue2.textContent = LicenseXpress.formatDate(license.issueDate);
+                    statusValue2.textContent = LicenseXpress.formatDate(license?.issue_date);
                     statusLabel3.textContent = 'Expiry Date';
-                    statusValue3.textContent = LicenseXpress.formatDate(license.expiryDate);
+                    statusValue3.textContent = LicenseXpress.formatDate(license?.expiry_date);
                     break;
             }
         }
@@ -502,10 +516,10 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
                 { id: 'not_started', icon: '📋', label: 'Not Started', date: null, color: 'gray' },
                 { id: 'pending_verification', icon: '⏳', label: 'Pending Verification', date: applicationState.submittedDate, color: 'orange' },
                 { id: 'verified', icon: '✅', label: 'Verified', date: applicationState.verifiedDate, color: 'green' },
-                { id: 'theory_scheduled', icon: '📝', label: 'Theory Test Scheduled', date: tests.theory?.date, color: 'blue' },
-                { id: 'theory_passed', icon: '🎓', label: 'Theory Passed', date: tests.theory?.passedDate, color: 'green' },
-                { id: 'practical_scheduled', icon: '🚗', label: 'Practical Scheduled', date: tests.practical?.date, color: 'blue' },
-                { id: 'license_issued', icon: '🏆', label: 'License Issued', date: license.issueDate, color: 'gold' }
+                { id: 'theory_scheduled', icon: '📝', label: 'Theory Test Scheduled', date: tests.theory?.scheduled_date || tests.theory?.test_date, color: 'blue' },
+                { id: 'theory_passed', icon: '🎓', label: 'Theory Passed', date: tests.theory?.passed_date || tests.theory?.test_date, color: 'green' },
+                { id: 'practical_scheduled', icon: '🚗', label: 'Practical Scheduled', date: tests.practical?.scheduled_date, color: 'blue' },
+                { id: 'license_issued', icon: '🏆', label: 'License Issued', date: license?.issue_date, color: 'gold' }
             ];
 
             const timelineHTML = steps.map((step, index) => {
@@ -530,7 +544,7 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
             console.log('Timeline HTML:', timelineHTML);
             timeline.innerHTML = timelineHTML;
             
-            // Force display
+            
             timeline.style.display = 'flex';
             timeline.style.flexDirection = 'column';
             timeline.style.gap = '16px';
@@ -575,7 +589,6 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
 
             const buttonConfigs = {
                 'not_started': { text: 'Start Application', icon: '→', action: 'application-form.php' },
-                'pending_verification': { text: 'View Application', icon: '👁️', action: 'view-application' },
                 'rejected': { text: 'Resubmit Documents', icon: '📝', action: 'application-form.php' },
                 'verified': { text: 'Schedule Theory Test', icon: '📅', action: 'schedule-theory.php' },
                 'theory_scheduled': { text: 'Take Theory Exam', icon: '📝', action: 'exam-window.php' },
@@ -584,6 +597,12 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
                 'practical_scheduled': { text: 'View Test Details', icon: '👁️', action: 'view-practical-details' },
                 'license_issued': { text: 'Download License', icon: '⬇️', action: 'download-license' }
             };
+
+            // Hide action button for pending_verification status
+            if (status === 'pending_verification') {
+                actionButton.style.display = 'none';
+                return;
+            }
 
             const config = buttonConfigs[status] || buttonConfigs['not_started'];
             btnText.textContent = config.text;
@@ -598,20 +617,112 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
             };
         }
 
+        async function fetchApplicationDetails() {
+            try {
+                // Get current user's NIC from localstorage
+                const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+                const nic = currentUser.nic;
+                
+                if (!nic) {
+                    throw new Error('User NIC not found. Please login again.');
+                }
+                
+                // Show loading state in the details container
+                const detailsContainer = document.getElementById('application-details-container');
+                if (detailsContainer) {
+                    detailsContainer.innerHTML = `
+                        <div class="application-details-loading">
+                            <div class="loading-spinner"></div>
+                            <p>Loading application details...</p>
+                        </div>
+                    `;
+                    detailsContainer.style.display = 'block';
+                }
+                
+                // Fetch application data from the API with NIC parameter
+                console.log('Fetching application details for NIC:', nic);
+                const response = await fetch(`get_application_status.php?nic=${encodeURIComponent(nic)}`);
+                console.log('API response status:', response.status);
+                const data = await response.json();
+                console.log('API response data:', data);
+                
+                if (data.success) {
+                    const application = data.application;
+                    const user = data.user;
+                    const payment = data.payment;
+                    
+                    // Format the application details - Only essential information
+                    const applicationDetails = `
+                        <div class="application-details">
+                            <div class="details-header">
+                                <h4>📋 Application Information</h4>
+                                <div class="status-badge pending">Under Review</div>
+                            </div>
+                            
+                            <div class="details-grid">
+                                <div class="detail-item">
+                                    <div class="detail-icon">🆔</div>
+                                    <div class="detail-content">
+                                        <h5>Application ID</h5>
+                                        <p>${application.application_id || 'LX-2025-001234'}</p>
+                                    </div>
+                                </div>
+                                
+                                <div class="detail-item">
+                                    <div class="detail-icon">📅</div>
+                                    <div class="detail-content">
+                                        <h5>Date Submitted</h5>
+                                        <p>${LicenseXpress.formatDateTime(application.submitted_date || application.created_at)}</p>
+                                    </div>
+                                </div>
+                                
+                                <div class="detail-item">
+                                    <div class="detail-icon">📊</div>
+                                    <div class="detail-content">
+                                        <h5>Progress</h5>
+                                        <p>${application.progress || 14}% Complete</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="details-footer">
+                                <p>📧 You will be notified via email and SMS when verification is complete.</p>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Update the details container with real data
+                    if (detailsContainer) {
+                        detailsContainer.innerHTML = applicationDetails;
+                    }
+                    
+                } else {
+                    throw new Error(data.error || 'Failed to fetch application details');
+                }
+                
+            } catch (error) {
+                console.error('Error fetching application details:', error);
+                const detailsContainer = document.getElementById('application-details-container');
+                if (detailsContainer) {
+                    detailsContainer.innerHTML = `
+                        <div class="application-details-error">
+                            <div class="error-icon">❌</div>
+                            <h4>Error Loading Details</h4>
+                            <p>Unable to load application details. Please try again later.</p>
+                            <p><small>Error: ${error.message}</small></p>
+                        </div>
+                    `;
+                }
+            }
+        }
+
         function handleAction(action, applicationState, tests, license) {
+            console.log('handleAction called with:', action);
             switch (action) {
                 case 'view-application':
-                    LicenseXpress.showModal('Application Details', `
-                        <div class="application-details">
-                            <h4>Application Information</h4>
-                            <p><strong>Application ID:</strong> ${applicationState.applicationId || 'LX-2025-001234'}</p>
-                            <p><strong>Submitted:</strong> ${LicenseXpress.formatDateTime(applicationState.submittedDate)}</p>
-                            <p><strong>Status:</strong> Under Review</p>
-                            <p><strong>Payment:</strong> Rs. ${applicationState.payment?.amount || 3200} (Completed)</p>
-                        </div>
-                    `, [
-                        { text: 'Close', action: 'close' }
-                    ]);
+                    console.log('Calling fetchApplicationDetails...');
+                    // Fetch real application data from database
+                    fetchApplicationDetails();
                     break;
 
                 case 'view-theory-details':
@@ -631,33 +742,268 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
                     break;
 
                 case 'view-practical-details':
-                    LicenseXpress.showModal('Practical Test Details', `
-                        <div class="test-details">
-                            <h4>Practical Test Information</h4>
-                            <p><strong>Date:</strong> ${LicenseXpress.formatDate(tests.practical.date)}</p>
-                            <p><strong>Time:</strong> ${tests.practical.time}</p>
-                            <p><strong>Center:</strong> ${tests.practical.center}</p>
-                            <p><strong>Address:</strong> ${tests.practical.address}</p>
-                            <p><strong>Vehicle:</strong> ${tests.practical.vehicle}</p>
-                            <p><strong>Examiner:</strong> ${tests.practical.examiner}</p>
-                        </div>
-                    `, [
-                        { text: 'Close', action: 'close' }
-                    ]);
+                    window.location.href = 'schedule-practical.php';
                     break;
 
                 case 'download-license':
-                    LicenseXpress.showModal('Download License', `
-                        <div class="license-download">
-                            <h4>Your Digital License is Ready!</h4>
-                            <p>License Number: ${license.number}</p>
-                            <p>Issue Date: ${LicenseXpress.formatDate(license.issueDate)}</p>
-                            <p>Expiry Date: ${LicenseXpress.formatDate(license.expiryDate)}</p>
-                            <p>Category: ${license.category}</p>
+                   
+                    const currentUser = LicenseXpress.getCurrentUser();
+                    
+                  const licenseData = {
+                        number: license?.license_number || 'DL-2025-001234',
+                        name: currentUser?.full_name || 'Not specified',
+                        nic: currentUser?.nic || 'Not specified',
+                        category: currentUser?.transmission_type || 'B',
+                        issueDate: license?.issue_date || new Date().toISOString().split('T')[0],
+                        expiryDate: license?.expiry_date || new Date(Date.now() + 5 * 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+                    };
+                    
+                  
+                    const htmlContent = `
+                        <!DOCTYPE html>
+                        <html>
+                        <head>
+                            <title>Sri Lanka Driving License</title>
+                            <style>
+                                body {
+                                    font-family: Arial, sans-serif;
+                                    margin: 0;
+                                    padding: 20px;
+                                    background: white;
+                                }
+                                .license-card {
+                                    width: 800px;
+                                    height: 500px;
+                                    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+                                    border: 3px solid #dc2626;
+                                    border-radius: 15px;
+                                    margin: 0 auto;
+                                    position: relative;
+                                    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+                                }
+                                .license-header {
+                                    background: linear-gradient(135deg, #dc2626, #ef4444);
+                                    color: white;
+                                    padding: 15px;
+                                    text-align: center;
+                                    font-size: 18px;
+                                    font-weight: bold;
+                                    letter-spacing: 2px;
+                                    border-radius: 12px 12px 0 0;
+                                }
+                                .license-content {
+                                    padding: 30px;
+                                    display: grid;
+                                    grid-template-columns: 200px 1fr;
+                                    gap: 30px;
+                                    height: calc(100% - 80px);
+                                }
+                                .photo-section {
+                                    text-align: center;
+                                }
+                                .photo-placeholder {
+                                    width: 150px;
+                                    height: 180px;
+                                    background: linear-gradient(135deg, #e5e7eb, #d1d5db);
+                                    border: 2px solid #9ca3af;
+                                    border-radius: 10px;
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                    font-size: 14px;
+                                    color: #6b7280;
+                                    font-weight: bold;
+                                    margin-bottom: 15px;
+                                }
+                                .valid-badge {
+                                    background: linear-gradient(135deg, #10b981, #34d399);
+                                    color: white;
+                                    padding: 8px 15px;
+                                    border-radius: 20px;
+                                    font-size: 12px;
+                                    font-weight: bold;
+                                    display: inline-block;
+                                }
+                                .license-details {
+                                    color: #1f2937;
+                                }
+                                .detail-row {
+                                    margin-bottom: 15px;
+                                    display: flex;
+                                    align-items: center;
+                                }
+                                .detail-label {
+                                    font-size: 12px;
+                                    color: #6b7280;
+                                    font-weight: bold;
+                                    text-transform: uppercase;
+                                    letter-spacing: 1px;
+                                    width: 120px;
+                                }
+                                .detail-value {
+                                    font-size: 16px;
+                                    color: #1f2937;
+                                    font-weight: 600;
+                                    flex: 1;
+                                }
+                                .license-number {
+                                    font-size: 24px;
+                                    font-weight: bold;
+                                    color: #dc2626;
+                                    letter-spacing: 2px;
+                                }
+                                .license-footer {
+                                    position: absolute;
+                                    bottom: 0;
+                                    left: 0;
+                                    right: 0;
+                                    background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
+                                    padding: 15px;
+                                    text-align: center;
+                                    font-size: 12px;
+                                    color: #64748b;
+                                    font-weight: bold;
+                                    border-radius: 0 0 12px 12px;
+                                }
+                                @media print {
+                                    body { margin: 0; }
+                                    .license-card { box-shadow: none; }
+                                }
+                            </style>
+                        </head>
+                        <body>
+                            <div class="license-card">
+                                <div class="license-header">
+                                    🇱🇰 SRI LANKA DRIVING LICENSE
+                                </div>
+                                <div class="license-content">
+                                    <div class="photo-section">
+                                        <div class="photo-placeholder">PHOTO</div>
+                                        <div class="valid-badge">VALID</div>
+                                    </div>
+                                    <div class="license-details">
+                                        <div class="detail-row">
+                                            <div class="detail-label">License Number</div>
+                                            <div class="detail-value license-number">${licenseData.number}</div>
+                                        </div>
+                                        <div class="detail-row">
+                                            <div class="detail-label">Full Name</div>
+                                            <div class="detail-value">${licenseData.name}</div>
+                                        </div>
+                                        <div class="detail-row">
+                                            <div class="detail-label">NIC Number</div>
+                                            <div class="detail-value">${licenseData.nic}</div>
+                                        </div>
+                                        <div class="detail-row">
+                                            <div class="detail-label">Address</div>
+                                            <div class="detail-value">Colombo 07, Sri Lanka</div>
+                                        </div>
+                                        <div class="detail-row">
+                                            <div class="detail-label">Vehicle Category</div>
+                                            <div class="detail-value">${licenseData.category} - Light Motor Vehicle</div>
+                                        </div>
+                                        <div class="detail-row">
+                                            <div class="detail-label">Transmission</div>
+                                            <div class="detail-value">Manual</div>
+                                        </div>
+                                        <div class="detail-row">
+                                            <div class="detail-label">Issue Date</div>
+                                            <div class="detail-value">${new Date(licenseData.issueDate).toLocaleDateString('en-US', {
+                                                year: 'numeric',
+                                                month: 'long',
+                                                day: 'numeric'
+                                            })}</div>
+                                        </div>
+                                        <div class="detail-row">
+                                            <div class="detail-label">Expiry Date</div>
+                                            <div class="detail-value">${new Date(licenseData.expiryDate).toLocaleDateString('en-US', {
+                                                year: 'numeric',
+                                                month: 'long',
+                                                day: 'numeric'
+                                            })}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="license-footer">
+                                    This is a digital copy of your official driving license
+                                </div>
+                            </div>
+                        </body>
+                        </html>
+                    `;
+                    
+                    
+                    const printWindow = window.open('', '_blank', 'width=800,height=600');
+                    printWindow.document.write(htmlContent);
+                    printWindow.document.close();
+                    
+                    
+                    printWindow.onload = function() {
+                        printWindow.print();
+                        
+                        setTimeout(() => {
+                            printWindow.close();
+                        }, 1000);
+                    };
+                    
+                
+                    LicenseXpress.showToast('Opening license for download/print...', 'success');
+                    break;
+
+                case 'download-study-guide':
+                    LicenseXpress.showModal('Practical Test Study Guide', `
+                        <div class="study-guide-content">
+                            <h4>📚 Practical Test Preparation Guide</h4>
+                            <div class="guide-section">
+                                <h5>🚗 Vehicle Preparation</h5>
+                                <ul>
+                                    <li>Ensure your vehicle is roadworthy and properly insured</li>
+                                    <li>Check all lights, indicators, and mirrors</li>
+                                    <li>Verify brakes, steering, and tires are in good condition</li>
+                                    <li>Clean the interior and ensure all controls work properly</li>
+                                </ul>
+                            </div>
+                            
+                            <div class="guide-section">
+                                <h5>📋 Required Documents</h5>
+                                <ul>
+                                    <li>Valid theory test pass certificate</li>
+                                    <li>National Identity Card (NIC)</li>
+                                    <li>Vehicle registration certificate</li>
+                                    <li>Valid insurance certificate</li>
+                                    <li>Valid revenue license</li>
+                                </ul>
+                            </div>
+                            
+                            <div class="guide-section">
+                                <h5>🎯 Test Areas Covered</h5>
+                                <ul>
+                                    <li>Vehicle controls and safety checks</li>
+                                    <li>Starting and stopping procedures</li>
+                                    <li>Turning and lane changing</li>
+                                    <li>Parking (parallel and reverse)</li>
+                                    <li>Traffic rules and road signs</li>
+                                    <li>Emergency procedures</li>
+                                </ul>
+                            </div>
+                            
+                            <div class="guide-section">
+                                <h5>💡 Tips for Success</h5>
+                                <ul>
+                                    <li>Practice regularly with a qualified instructor</li>
+                                    <li>Familiarize yourself with the test route area</li>
+                                    <li>Stay calm and follow examiner instructions</li>
+                                    <li>Use mirrors frequently and signal properly</li>
+                                    <li>Maintain appropriate speed and safe following distance</li>
+                                </ul>
+                            </div>
+                            
+                            <div class="important-notice">
+                                <p><strong>Remember:</strong> The practical test focuses on safe driving practices and adherence to traffic rules. Confidence and preparation are key to success!</p>
+                            </div>
                         </div>
                     `, [
-                        { text: 'Download PDF', action: 'download-pdf', class: 'btn-primary' },
-                        { text: 'Download Image', action: 'download-image', class: 'btn-secondary' },
+                        { text: 'Download PDF', action: 'download-pdf' },
                         { text: 'Close', action: 'close' }
                     ]);
                     break;
@@ -668,7 +1014,7 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
             const dynamicContent = document.getElementById('dynamicContent');
             const statusMessage = document.getElementById('statusMessage');
 
-            
+           
             const statusMessages = {
                 'not_started': 'Welcome to LicenseXpress! Start your license application journey today. Complete your application in just 3 simple steps.',
                 'pending_verification': 'Your documents are being verified by our team. This process typically takes up to 48 hours. You\'ll receive an email and SMS notification once verification is complete.',
@@ -683,7 +1029,7 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
 
             statusMessage.textContent = statusMessages[status] || statusMessages['not_started'];
 
-            
+           
             let content = '';
 
             switch (status) {
@@ -712,7 +1058,7 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
                     content = generatePracticalScheduledContent(tests);
                     break;
                 case 'license_issued':
-                    content = generateLicenseIssuedContent(license);
+                    content = generateLicenseIssuedContent(license, userProfile);
                     break;
             }
 
@@ -721,38 +1067,297 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
 
         function generateNotStartedContent() {
             return `
-                <div class="info-card glass-card">
-                    <h3>📋 What you'll need:</h3>
-                    <ul>
-                        <li>Birth Certificate (digital copy)</li>
-                        <li>NIC Copy (front and back)</li>
-                        <li>Medical Certificate (< 6 months old)</li>
-                        <li>Passport photo (white background)</li>
-                        <li>Payment method (Rs. 3,200)</li>
-                    </ul>
+                <div class="welcome-section glass-card">
+                    <div class="welcome-header">
+                        <div class="welcome-icon">🚗</div>
+                        <div class="welcome-content">
+                            <h2>Welcome to LicenseXpress!</h2>
+                            <p>Get your Sri Lankan driving license in just a few simple steps. Let's get started!</p>
+                        </div>
+                    </div>
+                    
+                    <div class="requirements-section">
+                        <h3>📋 What You'll Need to Get Started</h3>
+                        <div class="requirements-grid">
+                            <div class="requirement-item">
+                                <div class="req-icon">📄</div>
+                                <div class="req-content">
+                                    <h4>Birth Certificate</h4>
+                                    <p>Digital copy (PDF or clear photo)</p>
+                                    <span class="req-note">Must be official government document</span>
+                                </div>
+                            </div>
+                            
+                            <div class="requirement-item">
+                                <div class="req-icon">🆔</div>
+                                <div class="req-content">
+                                    <h4>NIC Copy</h4>
+                                    <p>Front and back sides</p>
+                                    <span class="req-note">Clear, readable images</span>
+                                </div>
+                            </div>
+                            
+                            <div class="requirement-item">
+                                <div class="req-icon">🏥</div>
+                                <div class="req-content">
+                                    <h4>Medical Certificate</h4>
+                                    <p>Less than 6 months old</p>
+                                    <span class="req-note">From registered medical practitioner</span>
+                                </div>
+                            </div>
+                            
+                            <div class="requirement-item">
+                                <div class="req-icon">📸</div>
+                                <div class="req-content">
+                                    <h4>Passport Photo</h4>
+                                    <p>White background</p>
+                                    <span class="req-note">Professional quality, recent photo</span>
+                                </div>
+                            </div>
+                            
+                            <div class="requirement-item">
+                                <div class="req-icon">💳</div>
+                                <div class="req-content">
+                                    <h4>Payment</h4>
+                                    <p>Rs. 3,200</p>
+                                    <span class="req-note">Credit/Debit card or bank transfer</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="process-info">
+                        <h3>⚡ Quick Process Overview</h3>
+                        <div class="process-steps">
+                            <div class="process-step">
+                                <div class="step-number">1</div>
+                                <div class="step-content">
+                                    <h4>Submit Application</h4>
+                                    <p>Upload documents and pay fees</p>
+                                </div>
+                            </div>
+                            <div class="step-arrow">→</div>
+                            <div class="process-step">
+                                <div class="step-number">2</div>
+                                <div class="step-content">
+                                    <h4>Verification</h4>
+                                    <p>Documents reviewed (24-48 hours)</p>
+                                </div>
+                            </div>
+                            <div class="step-arrow">→</div>
+                            <div class="process-step">
+                                <div class="step-number">3</div>
+                                <div class="step-content">
+                                    <h4>Theory Test</h4>
+                                    <p>Online exam (50 questions)</p>
+                                </div>
+                            </div>
+                            <div class="step-arrow">→</div>
+                            <div class="process-step">
+                                <div class="step-number">4</div>
+                                <div class="step-content">
+                                    <h4>Practical Test</h4>
+                                    <p>Driving test at approved center</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="help-section">
+                        <h3>❓ Need Help?</h3>
+                        <div class="help-options">
+                            <div class="help-item">
+                                <div class="help-icon">📞</div>
+                                <div class="help-content">
+                                    <h4>Call Us</h4>
+                                    <p>+94 11 234 5678</p>
+                                </div>
+                            </div>
+                            <div class="help-item">
+                                <div class="help-icon">📧</div>
+                                <div class="help-content">
+                                    <h4>Email Support</h4>
+                                    <p>support@licensexpress.lk</p>
+                                </div>
+                            </div>
+                            <div class="help-item">
+                                <div class="help-icon">💬</div>
+                                <div class="help-content">
+                                    <h4>Live Chat</h4>
+                                    <p>Available 9 AM - 6 PM</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             `;
         }
 
         function generatePendingVerificationContent() {
             return `
-                <div class="info-card glass-card">
-                    <h3>📧 Verification Status Updates</h3>
-                    <p>You'll be notified via email and SMS when:</p>
-                    <ul>
-                        <li>Verification is in progress</li>
-                        <li>Documents are approved</li>
-                        <li>Any corrections are needed</li>
-                    </ul>
-                    <p>Check your email regularly for updates.</p>
+                <div class="verification-status-card glass-card">
+                    <div class="status-header">
+                        <div class="status-icon">⏳</div>
+                        <div class="status-content">
+                            <h3>Application Under Review</h3>
+                            <p>Your application is currently being verified by our team. This process typically takes up to 48 hours.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="quick-actions">
+                        <button class="btn btn-primary btn-large" onclick="handleAction('view-application')">
+                            <span class="btn-icon">👁️</span>
+                            View Application Details
+                        </button>
+                    </div>
                 </div>
+                
+                <!-- Application Details Container -->
+                <div id="application-details-container" class="application-details-container" style="display: none;">
+                    <!-- Details will be loaded here -->
+                </div>
+                
+                <div class="verification-progress-section glass-card">
+                    <div class="progress-header">
+                        <h3>📊 Verification Progress</h3>
+                        <div class="progress-status">In Progress</div>
+                    </div>
+                    
+                    <div class="progress-timeline">
+                        <div class="timeline-item completed">
+                            <div class="timeline-marker">✓</div>
+                            <div class="timeline-content">
+                                <h4>Application Submitted</h4>
+                                <p>Your application has been successfully submitted</p>
+                                <span class="timeline-time">Just now</span>
+                            </div>
+                        </div>
+                        
+                        <div class="timeline-item active">
+                            <div class="timeline-marker">⏳</div>
+                            <div class="timeline-content">
+                                <h4>Document Review</h4>
+                                <p>Our team is reviewing your submitted documents</p>
+                                <span class="timeline-time">In progress</span>
+                            </div>
+                        </div>
+                        
+                        <div class="timeline-item pending">
+                            <div class="timeline-marker">📋</div>
+                            <div class="timeline-content">
+                                <h4>Verification Complete</h4>
+                                <p>Documents will be approved and you'll be notified</p>
+                                <span class="timeline-time">Expected: 24-48 hours</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="verification-info-grid">
+                    <div class="info-card glass-card">
+                        <div class="info-icon">📧</div>
+                        <div class="info-content">
+                            <h4>Email Notifications</h4>
+                            <p>You'll receive email updates when:</p>
+                            <ul>
+                                <li>Verification starts</li>
+                                <li>Documents are approved</li>
+                                <li>Any issues are found</li>
+                                <li>Verification is complete</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="info-card glass-card">
+                        <div class="info-icon">📱</div>
+                        <div class="info-content">
+                            <h4>SMS Updates</h4>
+                            <p>Important updates will also be sent via SMS to your registered phone number.</p>
+                            <div class="contact-info">
+                                <strong>Phone:</strong> +94 77 123 4567
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="info-card glass-card">
+                        <div class="info-icon">⏰</div>
+                        <div class="info-content">
+                            <h4>Processing Time</h4>
+                            <p>Typical verification timeline:</p>
+                            <ul>
+                                <li>Initial review: 2-4 hours</li>
+                                <li>Document verification: 12-24 hours</li>
+                                <li>Final approval: 24-48 hours</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="info-card glass-card">
+                        <div class="info-icon">🆘</div>
+                        <div class="info-content">
+                            <h4>Need Help?</h4>
+                            <p>If you have questions or concerns:</p>
+                            <div class="help-contacts">
+                                <div class="contact-item">
+                                    <strong>📞 Call:</strong> +94 11 234 5678
+                                </div>
+                                <div class="contact-item">
+                                    <strong>📧 Email:</strong> support@licensexpress.lk
+                                </div>
+                                <div class="contact-item">
+                                    <strong>💬 Live Chat:</strong> Available 9 AM - 6 PM
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
                 <div class="verification-checklist glass-card">
-                    <h3>📋 Verification Checklist</h3>
+                    <div class="checklist-header">
+                        <h3>📋 Document Verification Status</h3>
+                        <div class="checklist-summary">4 documents under review</div>
+                    </div>
+                    
                     <div class="checklist-items">
-                        <div class="checklist-item">☑ Birth Certificate - Under Review</div>
-                        <div class="checklist-item">☑ NIC Copy - Under Review</div>
-                        <div class="checklist-item">☑ Medical Certificate - Under Review</div>
-                        <div class="checklist-item">☑ Passport Photo - Under Review</div>
+                        <div class="checklist-item">
+                            <div class="item-icon">📄</div>
+                            <div class="item-content">
+                                <h4>Birth Certificate</h4>
+                                <p>Under Review</p>
+                                <div class="status-indicator pending"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="checklist-item">
+                            <div class="item-icon">🆔</div>
+                            <div class="item-content">
+                                <h4>NIC Copy</h4>
+                                <p>Under Review</p>
+                                <div class="status-indicator pending"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="checklist-item">
+                            <div class="item-icon">🏥</div>
+                            <div class="item-content">
+                                <h4>Medical Certificate</h4>
+                                <p>Under Review</p>
+                                <div class="status-indicator pending"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="checklist-item">
+                            <div class="item-icon">📸</div>
+                            <div class="item-content">
+                                <h4>Passport Photo</h4>
+                                <p>Under Review</p>
+                                <div class="status-indicator pending"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="checklist-footer">
+                        <p>All documents are being reviewed by our verification team. You'll be notified of any issues or when verification is complete.</p>
                     </div>
                 </div>
             `;
@@ -806,65 +1411,642 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
 
         function generateTheoryScheduledContent(tests) {
             return `
-                <div class="test-details-card glass-card">
-                    <h3>📅 Theory Test Details</h3>
-                    <div class="test-info">
-                        <p><strong>Date:</strong> ${LicenseXpress.formatDate(tests.theory.date)}</p>
-                        <p><strong>Time:</strong> ${tests.theory.time}</p>
-                        <p><strong>Duration:</strong> 60 minutes</p>
-                        <p><strong>Format:</strong> Online Examination</p>
-                        <p><strong>Questions:</strong> 50 multiple choice</p>
-                        <p><strong>Pass Mark:</strong> 40/50 (80%)</p>
+                <div class="theory-test-card" style="
+                    background: linear-gradient(135deg, rgba(0, 95, 115, 0.1) 0%, rgba(10, 147, 150, 0.1) 100%);
+                    border: 2px solid rgba(0, 95, 115, 0.3);
+                    border-radius: 20px;
+                    padding: 30px;
+                    margin: 20px 0;
+                    box-shadow: 0 10px 40px rgba(0, 95, 115, 0.2);
+                    backdrop-filter: blur(10px);
+                ">
+                    <!-- Header Section -->
+                    <div style="
+                        display: flex;
+                        align-items: center;
+                        margin-bottom: 30px;
+                        padding-bottom: 20px;
+                        border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+                    ">
+                        <div style="
+                            background: linear-gradient(135deg, #005F73, #0A9396);
+                            border-radius: 15px;
+                            width: 60px;
+                            height: 60px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            font-size: 28px;
+                            margin-right: 20px;
+                            box-shadow: 0 5px 15px rgba(0, 95, 115, 0.3);
+                        ">📚</div>
+                        <div>
+                            <h2 style="
+                                color: #FFFFFF;
+                                font-size: 28px;
+                                font-weight: 700;
+                                margin: 0 0 8px 0;
+                                text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+                            ">Theory Test Details</h2>
+                            <p style="
+                                color: #94B8C4;
+                                font-size: 16px;
+                                margin: 0;
+                                font-weight: 400;
+                            ">Your scheduled examination information</p>
                     </div>
-                    <div class="test-requirements">
-                        <h4>Exam Requirements:</h4>
-                        <ul>
-                            <li>✓ Stable internet connection</li>
-                            <li>✓ Quiet environment</li>
-                            <li>✓ Webcam access (required for monitoring)</li>
-                            <li>✓ Computer/tablet (mobile not recommended)</li>
-                            <li>✓ Government-issued ID</li>
-                        </ul>
                     </div>
-                    <div class="exam-notice">
-                        <h4>⚠️ Important Exam Rules:</h4>
-                        <ul>
-                            <li>• No switching tabs or windows during exam</li>
-                            <li>• No right-clicking or keyboard shortcuts</li>
-                            <li>• No screenshots or screen recording</li>
-                            <li>• Camera monitoring is active throughout</li>
-                            <li>• Any violation will terminate the exam</li>
-                        </ul>
+                    
+                    <!-- Test Information Grid -->
+                    <div style="
+                        display: grid;
+                        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                        gap: 20px;
+                        margin-bottom: 30px;
+                    ">
+                        <div style="
+                            background: rgba(255, 255, 255, 0.08);
+                            border: 1px solid rgba(255, 255, 255, 0.15);
+                            border-radius: 15px;
+                            padding: 20px;
+                            transition: all 0.3s ease;
+                            cursor: pointer;
+                        " onmouseover="this.style.transform='translateY(-5px)'; this.style.background='rgba(255, 255, 255, 0.12)'" onmouseout="this.style.transform='translateY(0)'; this.style.background='rgba(255, 255, 255, 0.08)'">
+                            <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                                <div style="
+                                    background: linear-gradient(135deg, #EE9B00, #F9C74F);
+                                    border-radius: 10px;
+                                    width: 40px;
+                                    height: 40px;
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                    font-size: 18px;
+                                    margin-right: 15px;
+                                ">📅</div>
+                                <div>
+                                    <div style="color: #94B8C4; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Test Date</div>
+                                    <div style="color: #FFFFFF; font-size: 18px; font-weight: 700;">${LicenseXpress.formatDate(tests.theory.date)}</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div style="
+                            background: rgba(255, 255, 255, 0.08);
+                            border: 1px solid rgba(255, 255, 255, 0.15);
+                            border-radius: 15px;
+                            padding: 20px;
+                            transition: all 0.3s ease;
+                            cursor: pointer;
+                        " onmouseover="this.style.transform='translateY(-5px)'; this.style.background='rgba(255, 255, 255, 0.12)'" onmouseout="this.style.transform='translateY(0)'; this.style.background='rgba(255, 255, 255, 0.08)'">
+                            <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                                <div style="
+                                    background: linear-gradient(135deg, #10B981, #34D399);
+                                    border-radius: 10px;
+                                    width: 40px;
+                                    height: 40px;
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                    font-size: 18px;
+                                    margin-right: 15px;
+                                ">🕐</div>
+                                <div>
+                                    <div style="color: #94B8C4; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Test Time</div>
+                                    <div style="color: #FFFFFF; font-size: 18px; font-weight: 700;">${tests.theory.time}</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div style="
+                            background: rgba(255, 255, 255, 0.08);
+                            border: 1px solid rgba(255, 255, 255, 0.15);
+                            border-radius: 15px;
+                            padding: 20px;
+                            transition: all 0.3s ease;
+                            cursor: pointer;
+                        " onmouseover="this.style.transform='translateY(-5px)'; this.style.background='rgba(255, 255, 255, 0.12)'" onmouseout="this.style.transform='translateY(0)'; this.style.background='rgba(255, 255, 255, 0.08)'">
+                            <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                                <div style="
+                                    background: linear-gradient(135deg, #8B5CF6, #A78BFA);
+                                    border-radius: 10px;
+                                    width: 40px;
+                                    height: 40px;
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                    font-size: 18px;
+                                    margin-right: 15px;
+                                ">⏱️</div>
+                                <div>
+                                    <div style="color: #94B8C4; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Duration</div>
+                                    <div style="color: #FFFFFF; font-size: 18px; font-weight: 700;">60 minutes</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div style="
+                            background: rgba(255, 255, 255, 0.08);
+                            border: 1px solid rgba(255, 255, 255, 0.15);
+                            border-radius: 15px;
+                            padding: 20px;
+                            transition: all 0.3s ease;
+                            cursor: pointer;
+                        " onmouseover="this.style.transform='translateY(-5px)'; this.style.background='rgba(255, 255, 255, 0.12)'" onmouseout="this.style.transform='translateY(0)'; this.style.background='rgba(255, 255, 255, 0.08)'">
+                            <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                                <div style="
+                                    background: linear-gradient(135deg, #F59E0B, #FBBF24);
+                                    border-radius: 10px;
+                                    width: 40px;
+                                    height: 40px;
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                    font-size: 18px;
+                                    margin-right: 15px;
+                                ">💻</div>
+                                <div>
+                                    <div style="color: #94B8C4; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Format</div>
+                                    <div style="color: #FFFFFF; font-size: 18px; font-weight: 700;">Online Examination</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div style="
+                            background: rgba(255, 255, 255, 0.08);
+                            border: 1px solid rgba(255, 255, 255, 0.15);
+                            border-radius: 15px;
+                            padding: 20px;
+                            transition: all 0.3s ease;
+                            cursor: pointer;
+                        " onmouseover="this.style.transform='translateY(-5px)'; this.style.background='rgba(255, 255, 255, 0.12)'" onmouseout="this.style.transform='translateY(0)'; this.style.background='rgba(255, 255, 255, 0.08)'">
+                            <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                                <div style="
+                                    background: linear-gradient(135deg, #EF4444, #F87171);
+                                    border-radius: 10px;
+                                    width: 40px;
+                                    height: 40px;
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                    font-size: 18px;
+                                    margin-right: 15px;
+                                ">❓</div>
+                                <div>
+                                    <div style="color: #94B8C4; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Questions</div>
+                                    <div style="color: #FFFFFF; font-size: 18px; font-weight: 700;">50 multiple choice</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div style="
+                            background: rgba(255, 255, 255, 0.08);
+                            border: 1px solid rgba(255, 255, 255, 0.15);
+                            border-radius: 15px;
+                            padding: 20px;
+                            transition: all 0.3s ease;
+                            cursor: pointer;
+                        " onmouseover="this.style.transform='translateY(-5px)'; this.style.background='rgba(255, 255, 255, 0.12)'" onmouseout="this.style.transform='translateY(0)'; this.style.background='rgba(255, 255, 255, 0.08)'">
+                            <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                                <div style="
+                                    background: linear-gradient(135deg, #059669, #10B981);
+                                    border-radius: 10px;
+                                    width: 40px;
+                                    height: 40px;
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                    font-size: 18px;
+                                    margin-right: 15px;
+                                ">🎯</div>
+                                <div>
+                                    <div style="color: #94B8C4; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Pass Mark</div>
+                                    <div style="color: #FFFFFF; font-size: 18px; font-weight: 700;">40/50 (80%)</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Requirements Section -->
+                    <div style="
+                        background: rgba(16, 185, 129, 0.1);
+                        border: 2px solid rgba(16, 185, 129, 0.3);
+                        border-radius: 15px;
+                        padding: 25px;
+                        margin-bottom: 25px;
+                    ">
+                        <div style="margin-bottom: 20px;">
+                            <h3 style="
+                                color: #10B981;
+                                font-size: 22px;
+                                font-weight: 700;
+                                margin: 0 0 8px 0;
+                                display: flex;
+                                align-items: center;
+                            ">📋 What You Need</h3>
+                            <p style="color: #94B8C4; font-size: 16px; margin: 0;">Essential requirements for your exam</p>
+                        </div>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px;">
+                            <div style="
+                                background: rgba(16, 185, 129, 0.15);
+                                border: 1px solid rgba(16, 185, 129, 0.3);
+                                border-radius: 12px;
+                                padding: 15px;
+                                display: flex;
+                                align-items: center;
+                                transition: all 0.3s ease;
+                            " onmouseover="this.style.background='rgba(16, 185, 129, 0.25)'" onmouseout="this.style.background='rgba(16, 185, 129, 0.15)'">
+                                <div style="font-size: 20px; margin-right: 12px;">🌐</div>
+                                <span style="color: #FFFFFF; font-weight: 600;">Stable internet connection</span>
+                            </div>
+                            <div style="
+                                background: rgba(16, 185, 129, 0.15);
+                                border: 1px solid rgba(16, 185, 129, 0.3);
+                                border-radius: 12px;
+                                padding: 15px;
+                                display: flex;
+                                align-items: center;
+                                transition: all 0.3s ease;
+                            " onmouseover="this.style.background='rgba(16, 185, 129, 0.25)'" onmouseout="this.style.background='rgba(16, 185, 129, 0.15)'">
+                                <div style="font-size: 20px; margin-right: 12px;">🔇</div>
+                                <span style="color: #FFFFFF; font-weight: 600;">Quiet environment</span>
+                            </div>
+                            <div style="
+                                background: rgba(16, 185, 129, 0.15);
+                                border: 1px solid rgba(16, 185, 129, 0.3);
+                                border-radius: 12px;
+                                padding: 15px;
+                                display: flex;
+                                align-items: center;
+                                transition: all 0.3s ease;
+                            " onmouseover="this.style.background='rgba(16, 185, 129, 0.25)'" onmouseout="this.style.background='rgba(16, 185, 129, 0.15)'">
+                                <div style="font-size: 20px; margin-right: 12px;">📹</div>
+                                <span style="color: #FFFFFF; font-weight: 600;">Webcam access (monitoring)</span>
+                            </div>
+                            <div style="
+                                background: rgba(16, 185, 129, 0.15);
+                                border: 1px solid rgba(16, 185, 129, 0.3);
+                                border-radius: 12px;
+                                padding: 15px;
+                                display: flex;
+                                align-items: center;
+                                transition: all 0.3s ease;
+                            " onmouseover="this.style.background='rgba(16, 185, 129, 0.25)'" onmouseout="this.style.background='rgba(16, 185, 129, 0.15)'">
+                                <div style="font-size: 20px; margin-right: 12px;">💻</div>
+                                <span style="color: #FFFFFF; font-weight: 600;">Computer/tablet device</span>
+                            </div>
+                            <div style="
+                                background: rgba(16, 185, 129, 0.15);
+                                border: 1px solid rgba(16, 185, 129, 0.3);
+                                border-radius: 12px;
+                                padding: 15px;
+                                display: flex;
+                                align-items: center;
+                                transition: all 0.3s ease;
+                            " onmouseover="this.style.background='rgba(16, 185, 129, 0.25)'" onmouseout="this.style.background='rgba(16, 185, 129, 0.15)'">
+                                <div style="font-size: 20px; margin-right: 12px;">🆔</div>
+                                <span style="color: #FFFFFF; font-weight: 600;">Government-issued ID</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Rules Section -->
+                    <div style="
+                        background: rgba(245, 158, 11, 0.1);
+                        border: 2px solid rgba(245, 158, 11, 0.3);
+                        border-radius: 15px;
+                        padding: 25px;
+                        margin-bottom: 25px;
+                    ">
+                        <div style="margin-bottom: 20px;">
+                            <h3 style="
+                                color: #F59E0B;
+                                font-size: 22px;
+                                font-weight: 700;
+                                margin: 0 0 8px 0;
+                                display: flex;
+                                align-items: center;
+                            ">⚠️ Important Rules</h3>
+                            <p style="color: #94B8C4; font-size: 16px; margin: 0;">Follow these rules to avoid exam termination</p>
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 12px;">
+                            <div style="
+                                background: rgba(245, 158, 11, 0.15);
+                                border: 1px solid rgba(245, 158, 11, 0.3);
+                                border-radius: 12px;
+                                padding: 15px;
+                                display: flex;
+                                align-items: center;
+                                transition: all 0.3s ease;
+                            " onmouseover="this.style.background='rgba(245, 158, 11, 0.25)'" onmouseout="this.style.background='rgba(245, 158, 11, 0.15)'">
+                                <div style="font-size: 18px; margin-right: 12px;">🚫</div>
+                                <span style="color: #FFFFFF; font-weight: 600;">No switching tabs or windows</span>
+                            </div>
+                            <div style="
+                                background: rgba(245, 158, 11, 0.15);
+                                border: 1px solid rgba(245, 158, 11, 0.3);
+                                border-radius: 12px;
+                                padding: 15px;
+                                display: flex;
+                                align-items: center;
+                                transition: all 0.3s ease;
+                            " onmouseover="this.style.background='rgba(245, 158, 11, 0.25)'" onmouseout="this.style.background='rgba(245, 158, 11, 0.15)'">
+                                <div style="font-size: 18px; margin-right: 12px;">🚫</div>
+                                <span style="color: #FFFFFF; font-weight: 600;">No right-clicking or shortcuts</span>
+                            </div>
+                            <div style="
+                                background: rgba(245, 158, 11, 0.15);
+                                border: 1px solid rgba(245, 158, 11, 0.3);
+                                border-radius: 12px;
+                                padding: 15px;
+                                display: flex;
+                                align-items: center;
+                                transition: all 0.3s ease;
+                            " onmouseover="this.style.background='rgba(245, 158, 11, 0.25)'" onmouseout="this.style.background='rgba(245, 158, 11, 0.15)'">
+                                <div style="font-size: 18px; margin-right: 12px;">🚫</div>
+                                <span style="color: #FFFFFF; font-weight: 600;">No screenshots or recording</span>
+                            </div>
+                            <div style="
+                                background: rgba(245, 158, 11, 0.15);
+                                border: 1px solid rgba(245, 158, 11, 0.3);
+                                border-radius: 12px;
+                                padding: 15px;
+                                display: flex;
+                                align-items: center;
+                                transition: all 0.3s ease;
+                            " onmouseover="this.style.background='rgba(245, 158, 11, 0.25)'" onmouseout="this.style.background='rgba(245, 158, 11, 0.15)'">
+                                <div style="font-size: 18px; margin-right: 12px;">👁️</div>
+                                <span style="color: #FFFFFF; font-weight: 600;">Camera monitoring is active</span>
+                            </div>
+                            <div style="
+                                background: rgba(245, 158, 11, 0.15);
+                                border: 1px solid rgba(245, 158, 11, 0.3);
+                                border-radius: 12px;
+                                padding: 15px;
+                                display: flex;
+                                align-items: center;
+                                transition: all 0.3s ease;
+                            " onmouseover="this.style.background='rgba(245, 158, 11, 0.25)'" onmouseout="this.style.background='rgba(245, 158, 11, 0.15)'">
+                                <div style="font-size: 18px; margin-right: 12px;">⚡</div>
+                                <span style="color: #FFFFFF; font-weight: 600;">Violations will terminate exam</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Test Link Section -->
+                    <div style="
+                        background: linear-gradient(135deg, rgba(0, 95, 115, 0.2) 0%, rgba(10, 147, 150, 0.2) 100%);
+                        border: 2px solid rgba(0, 95, 115, 0.4);
+                        border-radius: 15px;
+                        padding: 25px;
+                        text-align: center;
+                    ">
+                        <div style="margin-bottom: 20px;">
+                            <h3 style="
+                                color: #0A9396;
+                                font-size: 22px;
+                                font-weight: 700;
+                                margin: 0 0 8px 0;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                            ">🔗 Your Test Link</h3>
+                            <p style="color: #94B8C4; font-size: 16px; margin: 0;">Access your exam 1 hour before scheduled time</p>
+                        </div>
+                        <div style="
+                            background: rgba(255, 255, 255, 0.1);
+                            border: 1px solid rgba(255, 255, 255, 0.2);
+                            border-radius: 12px;
+                            padding: 20px;
+                            margin-bottom: 20px;
+                        ">
+                            <div style="color: #94B8C4; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Exam Link</div>
+                            <div style="color: #FFFFFF; font-size: 16px; font-family: 'Courier New', monospace; word-break: break-all;">${tests.theory.testLink || 'Will be provided 1 hour before exam'}</div>
+                        </div>
+                        ${tests.theory.testLink ? `
+                            <button onclick="window.open('${tests.theory.testLink}', '_blank')" style="
+                                background: linear-gradient(135deg, #005F73, #0A9396);
+                                color: white;
+                                border: none;
+                                border-radius: 12px;
+                                padding: 15px 30px;
+                                font-size: 16px;
+                                font-weight: 700;
+                                cursor: pointer;
+                                transition: all 0.3s ease;
+                                box-shadow: 0 5px 15px rgba(0, 95, 115, 0.3);
+                                display: inline-flex;
+                                align-items: center;
+                                gap: 10px;
+                            " onmouseover="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 8px 25px rgba(0, 95, 115, 0.4)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 5px 15px rgba(0, 95, 115, 0.3)'">
+                                🚀 Start Exam
+                            </button>
+                        ` : `
+                            <button disabled style="
+                                background: rgba(255, 255, 255, 0.1);
+                                color: #94B8C4;
+                                border: 1px solid rgba(255, 255, 255, 0.2);
+                                border-radius: 12px;
+                                padding: 15px 30px;
+                                font-size: 16px;
+                                font-weight: 700;
+                                cursor: not-allowed;
+                                opacity: 0.6;
+                                display: inline-flex;
+                                align-items: center;
+                                gap: 10px;
+                            ">
+                                ⏰ Link Available Soon
+                            </button>
+                        `}
                     </div>
                 </div>
             `;
         }
 
         function generateTheoryPassedContent(tests) {
+          
+            const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+            const userProfile = JSON.parse(localStorage.getItem('userProfile') || '{}');
+            const applicationState = JSON.parse(localStorage.getItem('applicationState') || '{}');
+            
+          
+            const theoryData = tests.theory || {};
+            const score = theoryData.score || 0;
+            const scorePercentage = Math.round((score / 50) * 100);
+            const scoreColor = scorePercentage >= 90 ? '#10B981' : scorePercentage >= 80 ? '#3B82F6' : '#F59E0B';
+            
+            
+            const rawFullName = currentUser.fullName || userProfile.fullName || currentUser.full_name || userProfile.full_name || 'User';
+            const fullName = rawFullName.replace(/\s+/g, ' ').trim(); // Clean up extra spaces
+            const nic = currentUser.nic || userProfile.nic || '';
+            const applicationId = applicationState.applicationId || 'LX-2025-001234';
+            
+            
+            const testDate = theoryData.date ? LicenseXpress.formatDate(theoryData.date) : 
+                           theoryData.passedDate ? LicenseXpress.formatDate(theoryData.passedDate) : 
+                           'Not Available';
+            
+           
+            let scoreLabel;
+            if (score === 0 || scorePercentage === 0) {
+                scoreLabel = 'Score Pending';
+            } else if (scorePercentage >= 90) {
+                scoreLabel = 'Excellent Score!';
+            } else if (scorePercentage >= 80) {
+                scoreLabel = 'Great Score!';
+            } else if (scorePercentage >= 40) {
+                scoreLabel = 'Good Score!';
+            } else {
+                scoreLabel = 'Passed!';
+            }
+            
             return `
-                <div class="test-results-card glass-card">
-                    <h3>🎉 Theory Test Results</h3>
-                    <div class="results-info">
-                        <p><strong>Status:</strong> PASSED ✓</p>
-                        <p><strong>Score:</strong> ${tests.theory.score}/50 (${Math.round(tests.theory.score/50*100)}%)</p>
-                        <p><strong>Pass Mark:</strong> 40/50 (80%)</p>
-                        <p><strong>Test Date:</strong> ${LicenseXpress.formatDate(tests.theory.date)}</p>
-                        <p><strong>Time Taken:</strong> ${tests.theory.timeTaken || '38 minutes'}</p>
+                <div class="test-results-card glass-card success-card">
+                    <div class="results-header">
+                        <div class="success-icon">🎉</div>
+                        <h3>Theory Test Results</h3>
+                        <div class="status-badge passed">PASSED ✓</div>
+                    </div>
+                    
+                    <!-- User Information Section -->
+                    <div class="user-info-section">
+                        <div class="user-avatar-large">
+                            <div class="avatar-circle-large">${fullName.charAt(0).toUpperCase()}</div>
+                        </div>
+                        <div class="user-details">
+                            <h4 class="user-name">${fullName}</h4>
+                            <p class="user-nic">NIC: ${LicenseXpress.formatNIC(nic)}</p>
+                            <p class="user-application-id">Application ID: ${applicationId}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="results-summary">
+                        <div class="score-display">
+                            <div class="score-circle" style="background: conic-gradient(${scoreColor} ${scorePercentage * 3.6}deg, rgba(255,255,255,0.1) 0deg);">
+                                <div class="score-inner">
+                                    <span class="score-number">${score}</span>
+                                    <span class="score-total">/50</span>
+                                </div>
+                            </div>
+                            <div class="score-details">
+                                <div class="score-percentage">${scorePercentage}%</div>
+                                <div class="score-label">${scoreLabel}</div>
+                            </div>
+                        </div>
+                        
+                        <div class="results-grid">
+                            <div class="result-item">
+                                <div class="result-icon">📅</div>
+                                <div class="result-content">
+                                    <div class="result-label">Test Date</div>
+                                    <div class="result-value">${testDate}</div>
+                                </div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-icon">⏱️</div>
+                                <div class="result-content">
+                                    <div class="result-label">Time Taken</div>
+                                    <div class="result-value">${theoryData.timeTaken || '38 minutes'}</div>
+                                </div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-icon">🎯</div>
+                                <div class="result-content">
+                                    <div class="result-label">Pass Mark</div>
+                                    <div class="result-value">40/50 (80%)</div>
+                                </div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-icon">📊</div>
+                                <div class="result-content">
+                                    <div class="result-label">Your Score</div>
+                                    <div class="result-value">${score}/50 (${scorePercentage}%)</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="achievement-message">
+                        <p>🎊 Congratulations ${fullName.split(' ')[0]}! You've successfully passed your theory test. You're now one step closer to getting your driving license!</p>
                     </div>
                 </div>
+                
                 <div class="next-steps-card glass-card">
-                    <h3>✅ What's Next?</h3>
-                    <p>You can now schedule your practical driving test.</p>
-                    <div class="practical-info">
-                        <h4>Practical Test Information:</h4>
-                        <ul>
-                            <li>Location: Approved test center</li>
-                            <li>Duration: ~45 minutes</li>
-                            <li>Minimum advance booking: 7 days</li>
-                            <li>Vehicle: Your own or center rental</li>
-                            <li>Examiner: DMT certified instructor</li>
-                        </ul>
-                        <p><strong>Important:</strong> You must pass the practical test within 6 months of passing the theory test.</p>
+                    <div class="next-steps-header">
+                        <div class="next-icon">🚗</div>
+                        <h3>What's Next?</h3>
+                        <div class="progress-indicator">
+                            <div class="progress-step completed">1</div>
+                            <div class="progress-line"></div>
+                            <div class="progress-step current">2</div>
+                            <div class="progress-line"></div>
+                            <div class="progress-step">3</div>
+                        </div>
+                    </div>
+                    
+                    <div class="next-steps-content">
+                        <div class="step-description">
+                            <h4>🎯 Ready for Your Practical Test!</h4>
+                            <p>Your practical driving test has been automatically scheduled. Here's everything you need to know:</p>
+                        </div>
+                        
+                        <div class="practical-info-grid">
+                            <div class="info-card">
+                                <div class="info-icon">📍</div>
+                                <div class="info-content">
+                                    <h5>Test Location</h5>
+                                    <p>Approved DMT Test Center</p>
+                                    <small>Address will be provided in your confirmation email</small>
+                                </div>
+                            </div>
+                            
+                            <div class="info-card">
+                                <div class="info-icon">⏰</div>
+                                <div class="info-content">
+                                    <h5>Duration</h5>
+                                    <p>Approximately 45 minutes</p>
+                                    <small>Includes briefing and debriefing</small>
+                                </div>
+                            </div>
+                            
+                            <div class="info-card">
+                                <div class="info-icon">🚙</div>
+                                <div class="info-content">
+                                    <h5>Vehicle</h5>
+                                    <p>Your own vehicle or center rental</p>
+                                    <small>Must be roadworthy and insured</small>
+                                </div>
+                            </div>
+                            
+                            <div class="info-card">
+                                <div class="info-icon">👨‍🏫</div>
+                                <div class="info-content">
+                                    <h5>Examiner</h5>
+                                    <p>DMT Certified Instructor</p>
+                                    <small>Professional and experienced</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="important-notice">
+                            <div class="notice-icon">⚠️</div>
+                            <div class="notice-content">
+                                <h5>Important Deadline</h5>
+                                <p>You must pass the practical test within <strong>6 months</strong> of passing the theory test, or you'll need to retake the theory test.</p>
+                            </div>
+                        </div>
+                        
+                        <div class="action-buttons">
+                            <button class="btn btn-primary" onclick="handleAction('view-practical-details')">
+                                <span class="btn-icon">👁️</span>
+                                View Practical Details
+                            </button>
+                            <button class="btn btn-secondary" onclick="LicenseXpress.handleAction('download-study-guide')">
+                                <span class="btn-icon">📚</span>
+                                Download Study Guide
+                            </button>
+                        </div>
                     </div>
                 </div>
             `;
@@ -944,599 +2126,73 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
             `;
         }
 
-        function generateLicenseIssuedContent(license) {
+        function generateLicenseIssuedContent(license, userProfile) {
+            
+            const formatDate = (dateString) => {
+                if (!dateString) return 'Not specified';
+                try {
+                    const date = new Date(dateString);
+                    if (isNaN(date.getTime())) return 'Not specified';
+                    return date.toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                    });
+                } catch (e) {
+                    return 'Not specified';
+                }
+            };
+
+           
+            const issueDate = license?.issue_date || new Date().toISOString().split('T')[0];
+            const expiryDate = license?.expiry_date || new Date(Date.now() + 5 * 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+            
             return `
-                <div class="license-preview glass-card">
-                    <h3>🏆 Your Digital License</h3>
-                    <div class="license-card-preview">
-                        <div class="license-header">🇱🇰 SRI LANKA DRIVING LICENSE</div>
-                        <div class="license-content">
-                            <div class="license-photo">[Photo]</div>
-                            <div class="license-details">
-                                <p><strong>LICENSE NUMBER:</strong> ${license.number}</p>
-                                <p><strong>NAME:</strong> ${license.name || 'JOHN DOE'}</p>
-                                <p><strong>NIC:</strong> ${license.nic || '200012345678'}</p>
-                                <p><strong>ADDRESS:</strong> ${license.address || 'Colombo 07'}</p>
-                                <p><strong>CATEGORY:</strong> ${license.category} - Light Motor Vehicle</p>
-                                <p><strong>TRANSMISSION:</strong> ${license.transmission || 'Manual'}</p>
-                                <p><strong>ISSUE DATE:</strong> ${LicenseXpress.formatDate(license.issueDate)}</p>
-                                <p><strong>EXPIRY DATE:</strong> ${LicenseXpress.formatDate(license.expiryDate)}</p>
-                            </div>
+                <div class="glass-card">
+                    <div class="congratulations-header">
+                        <div class="celebration-icon">🎉</div>
+                        <h2>Congratulations!</h2>
+                        <h3>Your Driving License Has Been Successfully Issued</h3>
+                        <p class="subtitle">You are now officially a licensed driver in Sri Lanka</p>
+                    </div>
+                    
+                    <div class="license-info">
+                        <h4>📋 Your License Details</h4>
+                        <div class="info-row">
+                            <span class="label">License Number:</span>
+                            <span class="value highlight">${license?.license_number || 'DL-2025-001234'}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">Full Name:</span>
+                            <span class="value">${userProfile?.fullName || 'License Holder'}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">NIC Number:</span>
+                            <span class="value">${userProfile?.nic || 'Not available'}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">Vehicle Category:</span>
+                            <span class="value">${userProfile?.transmissionType || 'B'} - Light Motor Vehicle</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">Issue Date:</span>
+                            <span class="value">${formatDate(issueDate)}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">Expiry Date:</span>
+                            <span class="value">${formatDate(expiryDate)}</span>
                         </div>
                     </div>
-                </div>
-                <div class="license-actions glass-card">
-                    <h3>📄 Download Options</h3>
-                    <div class="action-buttons">
-                        <button class="btn btn-primary">Download Digital License</button>
-                        <button class="btn btn-secondary">Download as Image</button>
-                        <button class="btn btn-secondary">Print License</button>
-                    </div>
-                </div>
-                <div class="achievement-summary glass-card">
-                    <h3>🎊 Journey Summary</h3>
-                    <div class="summary-content">
-                        <p><strong>Started:</strong> ${LicenseXpress.formatDate(license.journeyStart || new Date(Date.now() - 46*24*60*60*1000).toISOString())}</p>
-                        <p><strong>Completed:</strong> ${LicenseXpress.formatDate(license.issueDate)}</p>
-                        <p><strong>Total Time:</strong> 46 days</p>
-                        <div class="milestones">
-                            <h4>Milestones:</h4>
-                            <ul>
-                                <li>✓ Application submitted</li>
-                                <li>✓ Documents verified</li>
-                                <li>✓ Theory test passed (38/40 - 95%)</li>
-                                <li>✓ Practical test passed</li>
-                                <li>✓ License issued</li>
-                            </ul>
-                            <p><strong>You're now a licensed driver! 🎉</strong></p>
-                        </div>
+                    
+                    <div class="success-message">
+                        <div class="success-icon">🚗</div>
+                        <p><strong>Welcome to the road! Drive safely and responsibly.</strong></p>
+                        <p class="reminder">Remember to always carry your physical license when driving.</p>
                     </div>
                 </div>
             `;
         }
     </script>
 
-    <style>
-        .header {
-            display: block;
-        }
-
-        .header-actions {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .user-avatar {
-            width: 40px;
-            height: 40px;
-            background: var(--gradient-1);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 16px;
-            font-weight: 700;
-            color: white;
-            flex-shrink: 0;
-        }
-
-        .logout-btn {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: var(--surface);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: var(--text-muted);
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-            font-size: 16px;
-        }
-
-        .logout-btn:hover {
-            background: var(--surface-hover);
-            color: var(--text);
-            transform: scale(1.05);
-        }
-
-        
-        .btn, .logout-btn {
-            pointer-events: auto;
-            cursor: pointer;
-            user-select: none;
-        }
-
-        .btn:disabled {
-            pointer-events: none;
-            opacity: 0.6;
-        }
-
-        .timeline-section {
-            margin: 40px 0;
-        }
-
-        .section-title {
-            font-size: 24px;
-            font-weight: 700;
-            color: var(--text);
-            margin-bottom: 24px;
-            text-align: center;
-        }
-
-        .timeline {
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-            position: relative;
-            padding-left: 24px;
-        }
-
-        .timeline-step {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            position: relative;
-            padding: 16px 0;
-        }
-
-        .timeline-icon {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 18px;
-            flex-shrink: 0;
-            background: var(--surface);
-            border: 2px solid rgba(255, 255, 255, 0.1);
-            transition: all 0.3s ease;
-        }
-
-        .timeline-step.active .timeline-icon {
-            background: var(--gradient-1);
-            border-color: var(--primary-light);
-            box-shadow: 0 0 20px rgba(0, 95, 115, 0.3);
-        }
-
-        .timeline-step.completed .timeline-icon {
-            background: var(--success);
-            border-color: var(--success);
-        }
-
-        .timeline-step.rejected .timeline-icon {
-            background: var(--error);
-            border-color: var(--error);
-        }
-
-        .timeline-content {
-            flex: 1;
-        }
-
-        .timeline-label {
-            font-size: 16px;
-            font-weight: 600;
-            color: var(--text);
-            margin-bottom: 4px;
-        }
-
-        .timeline-date {
-            font-size: 14px;
-            color: var(--text-muted);
-        }
-
-        .timeline-connector {
-            position: absolute;
-            left: 39px;
-            top: 60px;
-            width: 2px;
-            height: 20px;
-            background: rgba(255, 255, 255, 0.1);
-        }
-
-        .timeline-step.completed + .timeline-step .timeline-connector {
-            background: var(--success);
-        }
-
-        .timeline-step.active + .timeline-step .timeline-connector {
-            background: var(--gradient-1);
-        }
-
-        .breadcrumb {
-            background: var(--bg-light);
-            padding: 16px 0;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .breadcrumb-item {
-            color: var(--text-muted);
-        }
-
-        .breadcrumb-separator {
-            color: var(--text-muted);
-            margin: 0 8px;
-        }
-
-        .breadcrumb-current {
-            color: var(--text);
-            font-weight: 600;
-        }
-
-        .dashboard-main {
-            padding: 40px 0;
-        }
-
-        .profile-card {
-            margin-bottom: 32px;
-            padding: 32px;
-        }
-
-        .profile-header {
-            display: flex;
-            align-items: center;
-            gap: 24px;
-            margin-bottom: 24px;
-        }
-
-        .profile-avatar {
-            flex-shrink: 0;
-        }
-
-        .avatar-circle {
-            width: 120px;
-            height: 120px;
-            border-radius: 50%;
-            background: var(--gradient-1);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 48px;
-            font-weight: 800;
-            color: white;
-            border: 4px solid var(--primary);
-        }
-
-        .profile-info {
-            flex: 1;
-        }
-
-        .profile-name {
-            font-size: 32px;
-            font-weight: 800;
-            margin-bottom: 8px;
-            color: var(--text);
-        }
-
-        .profile-nic {
-            font-size: 18px;
-            color: var(--text-muted);
-            margin-bottom: 24px;
-        }
-
-
-        .status-message {
-            background: var(--surface);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 12px;
-            padding: 20px;
-            color: var(--text-muted);
-            line-height: 1.6;
-        }
-
-        .status-details {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 24px;
-            margin-bottom: 40px;
-        }
-
-        .status-card {
-            padding: 24px;
-            display: flex;
-            align-items: center;
-            gap: 16px;
-        }
-
-        .status-icon {
-            font-size: 32px;
-            flex-shrink: 0;
-        }
-
-        .status-content {
-            flex: 1;
-        }
-
-        .status-label {
-            font-size: 14px;
-            color: var(--text-muted);
-            margin-bottom: 4px;
-        }
-
-        .status-value {
-            font-size: 18px;
-            font-weight: 600;
-            color: var(--text);
-        }
-
-        .timeline-section {
-            margin-bottom: 40px;
-        }
-
-        .section-title {
-            font-size: 24px;
-            font-weight: 700;
-            margin-bottom: 24px;
-            color: var(--text);
-        }
-
-        .timeline {
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            gap: 24px;
-        }
-
-        .timeline-step {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            position: relative;
-            opacity: 0.4;
-            transition: all 0.3s ease;
-        }
-
-        .timeline-step.completed {
-            opacity: 1;
-        }
-
-        .timeline-step.active {
-            opacity: 1;
-            transform: scale(1.02);
-        }
-
-        .timeline-step.rejected {
-            opacity: 1;
-        }
-
-        .timeline-icon {
-            width: 64px;
-            height: 64px;
-            border-radius: 50%;
-            background: var(--surface);
-            border: 2px solid rgba(255, 255, 255, 0.1);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-            flex-shrink: 0;
-            transition: all 0.3s ease;
-        }
-
-        .timeline-step.completed .timeline-icon {
-            background: var(--success);
-            border-color: var(--success);
-            color: white;
-        }
-
-        .timeline-step.active .timeline-icon {
-            background: var(--gradient-1);
-            border-color: var(--primary);
-            color: white;
-            animation: pulse 2s infinite;
-        }
-
-        .timeline-step.rejected .timeline-icon {
-            background: var(--error);
-            border-color: var(--error);
-            color: white;
-        }
-
-        .timeline-content {
-            flex: 1;
-        }
-
-        .timeline-label {
-            font-size: 18px;
-            font-weight: 600;
-            color: var(--text);
-            margin-bottom: 4px;
-        }
-
-        .timeline-date {
-            font-size: 14px;
-            color: var(--text-muted);
-        }
-
-        .timeline-connector {
-            position: absolute;
-            left: 32px;
-            top: 64px;
-            width: 2px;
-            height: 24px;
-            background: rgba(255, 255, 255, 0.1);
-        }
-
-        .timeline-step.completed + .timeline-step .timeline-connector {
-            background: var(--success);
-        }
-
-        .action-section {
-            text-align: center;
-            margin-bottom: 40px;
-        }
-
-        .btn-action {
-            padding: 20px 40px;
-            font-size: 20px;
-        }
-
-        .dynamic-content {
-            display: flex;
-            flex-direction: column;
-            gap: 24px;
-        }
-
-        .info-card,
-        .verification-checklist,
-        .rejection-alert,
-        .resubmission-guidelines,
-        .success-card,
-        .test-details-card,
-        .test-results-card,
-        .next-steps-card,
-        .practical-details-card,
-        .required-documents,
-        .license-preview,
-        .license-actions,
-        .achievement-summary {
-            padding: 24px;
-        }
-
-        .info-card h3,
-        .verification-checklist h3,
-        .rejection-alert h3,
-        .resubmission-guidelines h3,
-        .success-card h3,
-        .test-details-card h3,
-        .test-results-card h3,
-        .next-steps-card h3,
-        .practical-details-card h3,
-        .required-documents h3,
-        .license-preview h3,
-        .license-actions h3,
-        .achievement-summary h3 {
-            font-size: 20px;
-            font-weight: 700;
-            margin-bottom: 16px;
-            color: var(--text);
-        }
-
-        .checklist-items {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 12px;
-        }
-
-        .checklist-item {
-            padding: 12px;
-            background: var(--surface);
-            border-radius: 8px;
-            font-size: 14px;
-        }
-
-        .rejection-alert {
-            border-left: 4px solid var(--error);
-        }
-
-        .success-card {
-            border-left: 4px solid var(--success);
-        }
-
-        .license-card-preview {
-            background: var(--bg-light);
-            border: 2px solid var(--primary);
-            border-radius: 12px;
-            padding: 24px;
-            margin: 16px 0;
-        }
-
-        .license-header {
-            text-align: center;
-            font-weight: 800;
-            font-size: 18px;
-            margin-bottom: 20px;
-            color: var(--primary);
-        }
-
-        .license-content {
-            display: flex;
-            gap: 20px;
-        }
-
-        .license-photo {
-            width: 80px;
-            height: 100px;
-            background: var(--surface);
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 12px;
-            color: var(--text-muted);
-        }
-
-        .license-details {
-            flex: 1;
-        }
-
-        .license-details p {
-            margin-bottom: 8px;
-            font-size: 14px;
-        }
-
-        .action-buttons {
-            display: flex;
-            gap: 16px;
-            flex-wrap: wrap;
-        }
-
-        .summary-content p {
-            margin-bottom: 12px;
-        }
-
-        .milestones {
-            margin-top: 20px;
-        }
-
-        .milestones h4 {
-            font-size: 16px;
-            margin-bottom: 12px;
-            color: var(--text);
-        }
-
-        .milestones ul {
-            margin-bottom: 16px;
-        }
-
-        .milestones li {
-            margin-bottom: 8px;
-        }
-
-        @media (max-width: 768px) {
-            .profile-header {
-                flex-direction: column;
-                text-align: center;
-            }
-
-            .status-details {
-                grid-template-columns: 1fr;
-            }
-
-            .timeline {
-                padding-left: 0;
-            }
-
-            .timeline-step {
-                flex-direction: column;
-                text-align: center;
-            }
-
-            .timeline-connector {
-                display: none;
-            }
-
-            .action-buttons {
-                flex-direction: column;
-            }
-
-            .license-content {
-                flex-direction: column;
-            }
-        }
-    </style>
 </body>
 </html>
