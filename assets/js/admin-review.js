@@ -10,67 +10,67 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function initializeAdminReview() {
-    loadApplications();
+    loadAllSections();
     initializeFilters();
     initializeNavigation();
     initializeModals();
 }
 
 
-// LOAD APPLICATIONS
 
-
-async function loadApplications() {
-    console.log('Loading applications...');
+async function loadAllSections() {
+    console.log('Loading all sections...');
     
     try {
-        const statusFilter = document.getElementById('statusFilter')?.value || '';
-        const dateFilter = document.getElementById('dateFilter')?.value || '';
         const searchInput = document.getElementById('searchInput')?.value || '';
         
         const params = new URLSearchParams();
-        if (statusFilter) params.append('status', statusFilter);
-        if (dateFilter) params.append('dateFilter', dateFilter);
         if (searchInput) params.append('search', searchInput);
         
-        const response = await fetch(`api_admin-review.php?action=getAllApplications&${params.toString()}`);
         
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+        const [pendingResponse, practicalResponse, approvedResponse] = await Promise.all([
+            fetch(`api_admin-review.php?action=getApplicationsBySection&section=pending&${params.toString()}`),
+            fetch(`api_admin-review.php?action=getApplicationsBySection&section=practical&${params.toString()}`),
+            fetch(`api_admin-review.php?action=getApplicationsBySection&section=approved&${params.toString()}`)
+        ]);
+        
+        const [pendingResult, practicalResult, approvedResult] = await Promise.all([
+            pendingResponse.json(),
+            practicalResponse.json(),
+            approvedResponse.json()
+        ]);
+        
+        if (pendingResult.success) {
+            displayApplications(pendingResult.data, 'pendingApplicationsList');
+            updateSectionCount('pendingCount', pendingResult.data.length);
         }
         
-        const result = await response.json();
-        console.log('Applications response:', result);
-        
-        if (result.success) {
-            displayApplications(result.data);
-            updateResultsCount(result.data.length);
-        } else {
-            throw new Error(result.message || 'Failed to load applications');
+        if (practicalResult.success) {
+            displayApplications(practicalResult.data, 'practicalApplicationsList');
+            updateSectionCount('practicalCount', practicalResult.data.length);
         }
+        
+        if (approvedResult.success) {
+            displayApplications(approvedResult.data, 'approvedApplicationsList');
+            updateSectionCount('approvedCount', approvedResult.data.length);
+        }
+        
     } catch (error) {
-        console.error('Error loading applications:', error);
+        console.error('Error loading sections:', error);
         showToast('Failed to load applications: ' + error.message, 'error');
-        
-        const applicationsList = document.getElementById('applicationsList');
-        if (applicationsList) {
-            applicationsList.innerHTML = `
-                <div class="no-results">
-                    <div class="no-results-icon">⚠️</div>
-                    <div class="no-results-text">Failed to load applications</div>
-                    <div class="no-results-subtext">${escapeHtml(error.message)}</div>
-                    <button class="btn btn-primary" onclick="loadApplications()">Retry</button>
-                </div>
-            `;
-        }
     }
 }
 
-function displayApplications(applications) {
-    const applicationsList = document.getElementById('applicationsList');
+async function loadApplications() {
+    
+    await loadAllSections();
+}
+
+function displayApplications(applications, containerId = 'applicationsList') {
+    const applicationsList = document.getElementById(containerId);
     
     if (!applicationsList) {
-        console.error('applicationsList container not found');
+        console.error(`Container ${containerId} not found`);
         return;
     }
     
@@ -103,7 +103,7 @@ function displayApplications(applications) {
         }
         
         return `
-            <div class="application-card" data-application-id="${app.id}">
+            <div class="application-card" data-application-id="${app.id}" data-priority="${app.status === 'pending_verification' ? 'pending' : 'normal'}">
                 <div class="application-header">
                     <div class="application-info">
                         <div class="application-avatar">${initial}</div>
@@ -134,26 +134,66 @@ function displayApplications(applications) {
                     </div>
                 </div>
                 <div class="application-actions">
-                    <button class="btn btn-primary btn-sm" onclick="reviewApplication(${app.id})">Review</button>
-                    ${app.status === 'pending_verification' ? `
-                        <button class="btn btn-success btn-sm" onclick="quickApprove(${app.id})">Quick Approve</button>
-                        <button class="btn btn-danger btn-sm" onclick="quickReject(${app.id})">Quick Reject</button>
-                    ` : ''}
+                    ${getApplicationActions(app)}
                 </div>
+                ${getPriorityIndicator(app)}
             </div>
         `;
     }).join('');
 }
 
-function updateResultsCount(count) {
-    const resultsCount = document.getElementById('resultsCount');
-    if (resultsCount) {
-        resultsCount.textContent = `${count} application${count !== 1 ? 's' : ''} found`;
+function updateSectionCount(countId, count) {
+    const countElement = document.getElementById(countId);
+    if (countElement) {
+        countElement.textContent = `${count} application${count !== 1 ? 's' : ''} found`;
     }
 }
 
+function getApplicationActions(app) {
+    switch (app.status) {
+        case 'pending_verification':
+        case 'rejected':
+            return `
+                <button class="btn btn-primary btn-sm" onclick="reviewApplication(${app.id})">Review</button>
+                <button class="btn btn-success btn-sm" onclick="quickApprove(${app.id})">Quick Approve</button>
+                <button class="btn btn-danger btn-sm" onclick="quickReject(${app.id})">Quick Reject</button>
+            `;
+        case 'practical_scheduled':
+            return `
+                <button class="btn btn-primary btn-sm" onclick="reviewApplication(${app.id})">Review</button>
+                <button class="btn btn-warning btn-sm" onclick="openPracticalResultModal(${app.id})">Submit Result</button>
+            `;
+        case 'verified':
+        case 'theory_scheduled':
+        case 'theory_passed':
+        case 'license_issued':
+            return `
+                <button class="btn btn-secondary btn-sm" onclick="reviewApplication(${app.id})">View Details</button>
+            `;
+        default:
+            return `
+                <button class="btn btn-primary btn-sm" onclick="reviewApplication(${app.id})">Review</button>
+            `;
+    }
+}
 
-// REVIEW APPLICATION
+function getPriorityIndicator(app) {
+    if (app.status === 'pending_verification') {
+        return `
+            <div class="priority-indicator">
+                <span class="priority-badge">⚠️ Needs Review</span>
+            </div>
+        `;
+    } else if (app.status === 'practical_scheduled') {
+        return `
+            <div class="priority-indicator">
+                <span class="priority-badge practical">🚗 Practical Scheduled</span>
+            </div>
+        `;
+    }
+    return '';
+}
+
 
 
 async function reviewApplication(applicationId) {
@@ -192,7 +232,7 @@ function populateReviewModal(data) {
     const docs = data.documents;
     const payment = data.payment;
     
-    // Personal information
+    
     document.getElementById('reviewFullName').textContent = app.full_name || 'N/A';
     document.getElementById('reviewNIC').textContent = formatNIC(app.nic);
     document.getElementById('reviewDOB').textContent = formatDate(app.date_of_birth);
@@ -200,10 +240,10 @@ function populateReviewModal(data) {
     document.getElementById('reviewTransmission').textContent = app.transmission_type || 'N/A';
     document.getElementById('reviewDistrict').textContent = app.district || 'N/A';
     
-    // Documents
+    
     populateDocuments(docs);
     
-    // Payment 
+    
     if (payment) {
         const paymentDetails = document.querySelector('.payment-details');
         paymentDetails.innerHTML = `
@@ -234,11 +274,26 @@ function populateDocuments(documents) {
         'birth_certificate': { icon: '📄', label: 'Birth Certificate' },
         'nic_copy': { icon: '🪪', label: 'NIC Copy' },
         'medical_certificate': { icon: '🏥', label: 'Medical Certificate' },
-        'passport_photo': { icon: '📸', label: 'Passport Photo' }
+        'photo': { icon: '📸', label: 'Passport Photo' }
     };
     
+    function findPhotoDocFallback() {
+        
+        for (const [key, value] of Object.entries(documents || {})) {
+            if (typeof key === 'string' && key.toLowerCase().includes('photo')) {
+                return value;
+            }
+        }
+        return null;
+    }
+    
     documentsGrid.innerHTML = Object.entries(docTypes).map(([type, info]) => {
-        const doc = documents[type];
+        
+        let doc = documents ? documents[type] : null;
+        if (!doc && type === 'photo') {
+            
+            doc = documents ? (documents['passport_photo'] || findPhotoDocFallback()) : null;
+        }
         
         if (!doc) {
             return `
@@ -254,6 +309,7 @@ function populateDocuments(documents) {
             `;
         }
         
+        const isPending = !doc.status || doc.status === 'pending';
         const statusIcon = doc.status === 'approved' ? '✓' : 
                           doc.status === 'rejected' ? '❌' : '⏳';
         const statusClass = doc.status || 'pending';
@@ -268,7 +324,7 @@ function populateDocuments(documents) {
                 </div>
                 <div class="document-actions">
                     <button class="btn btn-secondary btn-sm" onclick="viewDocument(${doc.id})">View</button>
-                    ${doc.status === 'pending' ? `
+                    ${isPending ? `
                         <button class="btn btn-success btn-sm" onclick="reviewDocumentQuick(${doc.id}, 'approved')" title="Approve">✓</button>
                         <button class="btn btn-danger btn-sm" onclick="reviewDocumentQuick(${doc.id}, 'rejected')" title="Reject">✗</button>
                     ` : `
@@ -286,7 +342,6 @@ function populateDocuments(documents) {
 }
 
 
-// DOCUMENT REVIEW
 
 async function reviewDocumentQuick(documentId, status) {
     console.log(`Reviewing document ${documentId} with status: ${status}`);
@@ -378,8 +433,6 @@ function showDocumentModal(documentData) {
 }
 
 
-// SUBMIT APPLICATION REVIEW 
-
 
 async function submitApplicationReview() {
     const decisionElement = document.querySelector('input[name="decision"]:checked');
@@ -392,7 +445,7 @@ async function submitApplicationReview() {
     const decision = decisionElement.value;
     const comments = document.getElementById('reviewComments').value;
     
-    // Get rejection reasons
+    
     let rejectionReasons = [];
     if (decision === 'reject') {
         const checkboxes = document.querySelectorAll('.rejection-reasons input[type="checkbox"]:checked');
@@ -404,7 +457,7 @@ async function submitApplicationReview() {
         }
     }
     
-    // Confirm action
+    
     const confirmMessage = decision === 'approve' 
         ? 'Are you sure you want to APPROVE this application? Status will be changed to VERIFIED.'
         : 'Are you sure you want to REJECT this application? Status will be changed to NOT_VERIFIED.';
@@ -452,7 +505,105 @@ async function submitApplicationReview() {
 }
 
 
-// QUICK ACTIONS
+
+async function openPracticalResultModal(applicationId) {
+    currentApplicationId = applicationId;
+    
+    try {
+        showLoadingModal();
+        
+        const response = await fetch(`api_admin-review.php?action=getApplicationDetails&id=${applicationId}`);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        console.log('Application details response:', result);
+        
+        if (result.success) {
+            currentApplicationData = result.data;
+            populatePracticalModal(result.data);
+            showPracticalModal();
+        } else {
+            throw new Error(result.message || 'Failed to load application details');
+        }
+    } catch (error) {
+        console.error('Error loading application details:', error);
+        showToast('Failed to load application details: ' + error.message, 'error');
+    } finally {
+        hideLoadingModal();
+    }
+}
+
+function populatePracticalModal(data) {
+    const app = data.application;
+    const practicalTest = data.practicalTest;
+    
+    
+    document.getElementById('practicalFullName').textContent = app.full_name || 'N/A';
+    document.getElementById('practicalNIC').textContent = formatNIC(app.nic);
+    document.getElementById('practicalTestCenter').textContent = practicalTest ? practicalTest.center_name || 'N/A' : 'N/A';
+    document.getElementById('practicalScheduledDate').textContent = practicalTest ? formatDate(practicalTest.scheduled_date) : 'N/A';
+}
+
+async function submitPracticalExamResult() {
+    const resultElement = document.querySelector('input[name="practicalResult"]:checked');
+    
+    if (!resultElement) {
+        showToast('Please select a result (Passed or Failed)', 'warning');
+        return;
+    }
+    
+    const result = resultElement.value;
+    const comments = document.getElementById('practicalComments').value;
+    
+    
+    const confirmMessage = result === 'passed' 
+        ? 'Are you sure this candidate PASSED the practical exam? This will issue their license.'
+        : 'Are you sure this candidate FAILED the practical exam? They will need to retake the test.';
+    
+    if (!confirm(confirmMessage)) {
+        return;
+    }
+    
+    try {
+        showLoadingModal();
+        
+        const response = await fetch('api_admin-review.php?action=submitPracticalResult', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                applicationId: currentApplicationId,
+                result: result,
+                comments: comments
+            })
+        });
+        
+        const result = await response.json();
+        console.log('Practical result response:', result);
+        
+        if (result.success) {
+            const statusMessage = result.data.result === 'passed' 
+                ? 'Practical exam PASSED! License issued successfully 🎉'
+                : 'Practical exam FAILED. Candidate can retake the test.';
+            
+            showToast(statusMessage, 'success');
+            hidePracticalModal();
+            
+            
+            await loadAllSections();
+        } else {
+            throw new Error(result.message);
+        }
+    } catch (error) {
+        console.error('Error submitting practical result:', error);
+        showToast('Failed to submit practical result: ' + error.message, 'error');
+    } finally {
+        hideLoadingModal();
+    }
+}
+
 
 
 async function quickApprove(applicationId) {
@@ -463,7 +614,7 @@ async function quickApprove(applicationId) {
     try {
         showLoadingModal();
         
-        const response = await fetch('../../api_admin-review.php?action=reviewApplication', {
+        const response = await fetch('api_admin-review.php?action=reviewApplication', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -503,7 +654,7 @@ async function quickReject(applicationId) {
     try {
         showLoadingModal();
         
-        const response = await fetch('../../api_admin-review.php?action=reviewApplication', {
+        const response = await fetch('api_admin-review.php?action=reviewApplication', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -530,41 +681,38 @@ async function quickReject(applicationId) {
 }
 
 
-
 function initializeFilters() {
-    const statusFilter = document.getElementById('statusFilter');
-    const dateFilter = document.getElementById('dateFilter');
     const searchInput = document.getElementById('searchInput');
     const clearFilters = document.getElementById('clearFilters');
-    const refreshApplications = document.getElementById('refreshApplications');
-    
-    if (statusFilter) {
-        statusFilter.addEventListener('change', loadApplications);
-    }
-    
-    if (dateFilter) {
-        dateFilter.addEventListener('change', loadApplications);
-    }
+    const refreshPending = document.getElementById('refreshPending');
+    const refreshPractical = document.getElementById('refreshPractical');
+    const refreshApproved = document.getElementById('refreshApproved');
     
     if (searchInput) {
         let searchTimeout;
         searchInput.addEventListener('input', function() {
             clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(loadApplications, 500);
+            searchTimeout = setTimeout(loadAllSections, 500);
         });
     }
     
     if (clearFilters) {
         clearFilters.addEventListener('click', function() {
-            if (statusFilter) statusFilter.value = '';
-            if (dateFilter) dateFilter.value = '';
             if (searchInput) searchInput.value = '';
-            loadApplications();
+            loadAllSections();
         });
     }
     
-    if (refreshApplications) {
-        refreshApplications.addEventListener('click', loadApplications);
+    if (refreshPending) {
+        refreshPending.addEventListener('click', loadAllSections);
+    }
+    
+    if (refreshPractical) {
+        refreshPractical.addEventListener('click', loadAllSections);
+    }
+    
+    if (refreshApproved) {
+        refreshApproved.addEventListener('click', loadAllSections);
     }
 }
 
@@ -586,6 +734,11 @@ function initializeModals() {
     const cancelReview = document.getElementById('cancelReview');
     const submitReview = document.getElementById('submitReview');
     
+    const practicalModal = document.getElementById('practicalModal');
+    const closePracticalModal = document.getElementById('closePracticalModal');
+    const cancelPractical = document.getElementById('cancelPractical');
+    const submitPracticalResult = document.getElementById('submitPracticalResult');
+    
     const documentModal = document.getElementById('documentModal');
     const closeDocumentModal = document.getElementById('closeDocumentModal');
     
@@ -599,6 +752,18 @@ function initializeModals() {
     
     if (submitReview) {
         submitReview.addEventListener('click', submitApplicationReview);
+    }
+    
+    if (closePracticalModal) {
+        closePracticalModal.addEventListener('click', hidePracticalModal);
+    }
+    
+    if (cancelPractical) {
+        cancelPractical.addEventListener('click', hidePracticalModal);
+    }
+    
+    if (submitPracticalResult) {
+        submitPracticalResult.addEventListener('click', submitPracticalExamResult);
     }
     
     if (closeDocumentModal) {
@@ -639,7 +804,7 @@ function initializeModals() {
         downloadDocument.addEventListener('click', async function() {
             if (currentDocumentId) {
                 try {
-                    const response = await fetch(`../../api_admin-review.php?action=getDocumentFile&id=${currentDocumentId}`);
+                    const response = await fetch(`api_admin-review.php?action=getDocumentFile&id=${currentDocumentId}`);
                     const result = await response.json();
                     if (result.success) {
                         window.open(result.data.downloadUrl, '_blank');
@@ -676,7 +841,7 @@ function hideReviewModal() {
         modal.classList.add('hidden');
         document.body.style.overflow = 'auto';
         
-        // Reset form
+        
         const decisionInputs = document.querySelectorAll('input[name="decision"]');
         decisionInputs.forEach(input => input.checked = false);
         
@@ -685,6 +850,31 @@ function hideReviewModal() {
         
         const checkboxes = document.querySelectorAll('.rejection-reasons input[type="checkbox"]');
         checkboxes.forEach(cb => cb.checked = false);
+    }
+}
+
+function showPracticalModal() {
+    const modal = document.getElementById('practicalModal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    } else {
+        console.error('Practical modal element not found!');
+    }
+}
+
+function hidePracticalModal() {
+    const modal = document.getElementById('practicalModal');
+    if (modal) {
+        modal.classList.add('hidden');
+        document.body.style.overflow = 'auto';
+        
+        // Reset form
+        const resultInputs = document.querySelectorAll('input[name="practicalResult"]');
+        resultInputs.forEach(input => input.checked = false);
+        
+        const commentsField = document.getElementById('practicalComments');
+        if (commentsField) commentsField.value = '';
     }
 }
 
@@ -698,12 +888,13 @@ function hideDocumentModal() {
 
 function showLoadingModal() {
     console.log('Loading...');
-   
+    
 }
 
 function hideLoadingModal() {
     console.log('Loading complete');
 }
+
 
 
 function getStatusClass(status) {
@@ -777,57 +968,54 @@ function escapeHtml(text) {
 
 function showToast(message, type = 'info') {
     const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
     toast.textContent = message;
-
     toast.style.cssText = `
         position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background: ${type === 'success' ? '#10b981'
-                    : type === 'error' ? '#ef4444'
-                    : type === 'warning' ? '#f59e0b'
-                    : '#3b82f6'};
+        top: 20px;
+        right: 20px;
+        padding: 15px 25px;
+        background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : type === 'warning' ? '#f59e0b' : '#3b82f6'};
         color: white;
         border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         z-index: 10000;
-        font-size: 17px;
+        animation: slideIn 0.3s ease;
+        max-width: 400px;
         font-weight: 500;
-        line-height: 1.4;
-        padding: 10px 20px;   /* balanced space around text */
-        display: inline-block;
-        white-space: nowrap;
-        animation: fadeIn 0.25s ease, fadeOut 0.25s ease 3.75s;
-        opacity: 0;
-        transition: opacity 0.25s ease;
-        text-align: center;
     `;
-
-    document.body.appendChild(toast);
-
     
-    requestAnimationFrame(() => {
-        toast.style.opacity = '1';
-    });
-
+    document.body.appendChild(toast);
     
     setTimeout(() => {
-        toast.style.opacity = '0';
-        setTimeout(() => toast.remove(), 250);
+        toast.style.animation = 'slideOut 0.3s ease';
+        setTimeout(() => toast.remove(), 300);
     }, 4000);
 }
 
 
 const style = document.createElement('style');
 style.textContent = `
-@keyframes fadeIn {
-    from { opacity: 0; transform: translate(-50%, -55%); }
-    to { opacity: 1; transform: translate(-50%, -50%); }
-}
-@keyframes fadeOut {
-    from { opacity: 1; transform: translate(-50%, -50%); }
-    to { opacity: 0; transform: translate(-50%, -45%); }
-}
+    @keyframes slideIn {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+    
+    @keyframes slideOut {
+        from {
+            transform: translateX(0);
+            opacity: 1;
+        }
+        to {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+    }
 `;
 document.head.appendChild(style);

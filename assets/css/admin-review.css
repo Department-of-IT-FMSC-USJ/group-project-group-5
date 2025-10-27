@@ -17,6 +17,21 @@
     line-height: 1.6;
 }
 
+.sorting-info {
+    margin-top: 16px;
+}
+
+.sorting-badge {
+    display: inline-block;
+    padding: 8px 16px;
+    background: rgba(0, 95, 115, 0.1);
+    color: var(--primary);
+    border: 1px solid rgba(0, 95, 115, 0.2);
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 500;
+}
+
 
 .filters-section {
     padding: 24px;
@@ -247,6 +262,124 @@ select.filter-select option {
     display: flex;
     gap: 12px;
     justify-content: flex-end;
+}
+
+
+.priority-indicator {
+    margin-top: 12px;
+    text-align: center;
+}
+
+.priority-badge {
+    display: inline-block;
+    padding: 6px 12px;
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: white;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    animation: pulse 2s infinite;
+    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+}
+
+@keyframes pulse {
+    0% {
+        box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+    }
+    50% {
+        box-shadow: 0 4px 16px rgba(245, 158, 11, 0.5);
+    }
+    100% {
+        box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+    }
+}
+
+
+.application-card[data-priority="pending"] {
+    border-left: 4px solid var(--warning);
+    background: linear-gradient(135deg, var(--surface), rgba(245, 158, 11, 0.05));
+}
+
+.application-card[data-priority="pending"]:hover {
+    border-left-color: var(--warning);
+    box-shadow: 0 8px 32px rgba(245, 158, 11, 0.2);
+}
+
+
+.priority-badge.practical {
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    animation: pulse 2s infinite;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+}
+
+@keyframes pulse {
+    0% {
+        box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+    }
+    50% {
+        box-shadow: 0 4px 16px rgba(59, 130, 246, 0.5);
+    }
+    100% {
+        box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+    }
+}
+
+
+.practical-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 10000;
+}
+
+.practical-details {
+    margin-bottom: 32px;
+}
+
+.exam-actions {
+    margin-bottom: 24px;
+}
+
+.practical-comments {
+    width: 100%;
+    min-height: 100px;
+    padding: 12px;
+    background: var(--surface);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 14px;
+    resize: vertical;
+    transition: all 0.3s ease;
+}
+
+.practical-comments:focus {
+    outline: none;
+    border-color: var(--primary-light);
+    box-shadow: 0 0 0 3px rgba(0, 95, 115, 0.1);
+}
+
+
+.applications-section {
+    margin-bottom: 40px;
+    background: var(--surface);
+    border-radius: 16px;
+    padding: 24px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.applications-section:nth-child(1) {
+    border-left: 4px solid var(--warning);
+}
+
+.applications-section:nth-child(2) {
+    border-left: 4px solid var(--primary);
+}
+
+.applications-section:nth-child(3) {
+    border-left: 4px solid var(--success);
 }
 
 

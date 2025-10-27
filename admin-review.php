@@ -14,7 +14,7 @@ session_start();
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
-    //test
+    
     <header class="admin-header">
         <div class="container">
             <div class="header-content">
@@ -60,6 +60,7 @@ session_start();
             <div class="page-header">
                 <h1 class="page-title">Review Applications</h1>
                 <p class="page-subtitle">Review and verify user applications and documents</p>
+                
             </div>
 
             
@@ -97,19 +98,41 @@ session_start();
             
             <div class="applications-section">
                 <div class="section-header">
-                    <h2>📋 Applications</h2>
+                    <h2>⏳ Pending Approval</h2>
                     <div class="section-actions">
-                        <span class="results-count" id="resultsCount">0 applications found</span>
-                        <button class="btn btn-primary btn-sm" id="refreshApplications">Refresh</button>
+                        <span class="results-count" id="pendingCount">0 applications found</span>
+                        <button class="btn btn-primary btn-sm" id="refreshPending">Refresh</button>
                     </div>
                 </div>
-
-                <div class="applications-list" id="applicationsList">
+                <div class="applications-list" id="pendingApplicationsList">
                     
                 </div>
+            </div>
 
-                
-                <div class="pagination" id="pagination">
+            
+            <div class="applications-section">
+                <div class="section-header">
+                    <h2>🚗 Practical Scheduled</h2>
+                    <div class="section-actions">
+                        <span class="results-count" id="practicalCount">0 applications found</span>
+                        <button class="btn btn-primary btn-sm" id="refreshPractical">Refresh</button>
+                    </div>
+                </div>
+                <div class="applications-list" id="practicalApplicationsList">
+                    
+                </div>
+            </div>
+
+            
+            <div class="applications-section">
+                <div class="section-header">
+                    <h2>✅ Approved Applications</h2>
+                    <div class="section-actions">
+                        <span class="results-count" id="approvedCount">0 applications found</span>
+                        <button class="btn btn-primary btn-sm" id="refreshApproved">Refresh</button>
+                    </div>
+                </div>
+                <div class="applications-list" id="approvedApplicationsList">
                     
                 </div>
             </div>
@@ -125,7 +148,7 @@ session_start();
                 <button class="modal-close" id="closeModal">×</button>
             </div>
             <div class="modal-body">
-        
+                
                 <div class="application-details">
                     <div class="detail-section">
                         <h4>👤 Personal Information</h4>
@@ -283,6 +306,73 @@ session_start();
             <div class="modal-footer">
                 <button class="btn btn-secondary" id="cancelReview">Cancel</button>
                 <button class="btn btn-primary" id="submitReview">Submit Review</button>
+            </div>
+        </div>
+    </div>
+
+    
+    <div class="practical-modal hidden" id="practicalModal">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Practical Exam Results</h3>
+                <button class="modal-close" id="closePracticalModal">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="practical-details">
+                    <div class="detail-section">
+                        <h4>👤 Candidate Information</h4>
+                        <div class="detail-grid">
+                            <div class="detail-item">
+                                <span class="detail-label">Full Name:</span>
+                                <span class="detail-value" id="practicalFullName">John Doe</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">NIC Number:</span>
+                                <span class="detail-value" id="practicalNIC">200012345678</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Test Center:</span>
+                                <span class="detail-value" id="practicalTestCenter">Colombo Test Center</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Scheduled Date:</span>
+                                <span class="detail-value" id="practicalScheduledDate">January 25, 2025</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="detail-section">
+                        <h4>📝 Exam Results</h4>
+                        <div class="exam-actions">
+                            <div class="decision-options">
+                                <div class="decision-option">
+                                    <input type="radio" name="practicalResult" value="passed" id="practicalPassed">
+                                    <label for="practicalPassed" class="decision-label passed">
+                                        <span class="decision-icon">✅</span>
+                                        <span class="decision-text">Passed</span>
+                                    </label>
+                                </div>
+                                <div class="decision-option">
+                                    <input type="radio" name="practicalResult" value="failed" id="practicalFailed">
+                                    <label for="practicalFailed" class="decision-label failed">
+                                        <span class="decision-icon">❌</span>
+                                        <span class="decision-text">Failed</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="detail-section">
+                        <h4>📝 Comments</h4>
+                        <textarea class="practical-comments" id="practicalComments" placeholder="Add your comments about the practical exam performance..."></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancelPractical">Cancel</button>
+                <button class="btn btn-primary" id="submitPracticalResult">Submit Result</button>
             </div>
         </div>
     </div>
