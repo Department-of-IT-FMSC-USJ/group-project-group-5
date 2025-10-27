@@ -2,115 +2,112 @@
 
 document.addEventListener('DOMContentLoaded', function() {
     
-    if (!LicenseXpress.checkAuth()) {
-        window.location.href = 'login.php';
-        return;
-    }
-
-    
     initializePracticalScheduling();
 });
 
-function initializePracticalScheduling() {
-    const currentUser = LicenseXpress.getCurrentUser();
-    
-    
-    updateUserInfo(currentUser);
+let selectedTestCenter = null;
+let selectedDate = null;
+let selectedTime = null;
+let isRescheduling = false;
 
+function initializePracticalScheduling() {
+    console.log('Initializing practical scheduling...');
+    const appData = window.applicationData;
+    
+    
+    if (appData.rescheduleCount >= 1) {
+        disableRescheduleButton();
+    }
+    
     
     loadTestCenters();
+
+    
+    if (appData && appData.testCenterId) {
+        setTimeout(() => {
+            const centerElement = document.querySelector(`[data-center-id="${appData.testCenterId}"]`);
+            if (centerElement) {
+                centerElement.querySelector('input[type="radio"]').checked = true;
+                selectTestCenter(centerElement);
+            }
+        }, 100);
+    }
 
     
     initializeCalendar();
 
     
-    initializeTimeSlots();
-
-    
-    initializeVehicleSelection();
+    console.log('Initializing reschedule...');
+    initializeReschedule();
 
     
     initializeNavigation();
+    
+    console.log('Practical scheduling initialized successfully');
 }
 
-function updateUserInfo(user) {
-    const userName = document.getElementById('userName');
-    const userNIC = document.getElementById('userNIC');
-    const userAvatar = document.getElementById('userAvatar');
-
-    if (user) {
-        const name = user.fullName || 'User';
-        const initial = name.charAt(0).toUpperCase();
-        
-        userName.textContent = name;
-        userNIC.textContent = LicenseXpress.formatNIC(user.nic);
-        userAvatar.textContent = initial;
+function disableRescheduleButton() {
+    const rescheduleBtn = document.getElementById('rescheduleBtn');
+    if (rescheduleBtn) {
+        rescheduleBtn.disabled = true;
+        rescheduleBtn.textContent = 'Reschedule Used (1/1)';
+        rescheduleBtn.style.opacity = '0.6';
+        rescheduleBtn.style.cursor = 'not-allowed';
+        rescheduleBtn.title = 'You have already used your one reschedule opportunity';
     }
 }
 
 function loadTestCenters() {
     const testCentersGrid = document.getElementById('testCentersGrid');
     
-    const testCenters = [
-        {
-            id: 'colombo-werahera',
-            name: 'Colombo - Werahera Test Center',
-            location: 'Werahera, Colombo',
-            address: 'No. 123, Baseline Road, Colombo 09',
-            status: 'available',
-            features: ['Manual', 'Automatic', 'Parking', 'Waiting Area'],
-            examiner: 'Mr. K. Perera'
-        },
-        {
-            id: 'kandy-test-center',
-            name: 'Kandy Test Center',
-            location: 'Kandy',
-            address: 'No. 456, Peradeniya Road, Kandy',
-            status: 'available',
-            features: ['Manual', 'Automatic', 'Parking'],
-            examiner: 'Ms. S. Fernando'
-        },
-        {
-            id: 'galle-test-center',
-            name: 'Galle Test Center',
-            location: 'Galle',
-            address: 'No. 789, Galle Road, Galle',
-            status: 'full',
-            features: ['Manual', 'Parking'],
-            examiner: 'Mr. R. Silva'
-        },
-        {
-            id: 'kurunegala-test-center',
-            name: 'Kurunegala Test Center',
-            location: 'Kurunegala',
-            address: 'No. 321, Kurunegala Road, Kurunegala',
-            status: 'available',
-            features: ['Manual', 'Automatic', 'Parking', 'Waiting Area', 'Cafeteria'],
-            examiner: 'Mr. A. Rajapaksa'
-        }
-    ];
+    
+    testCentersGrid.innerHTML = '<div style="text-align: center; padding: 40px;">Loading test centers...</div>';
+    
+    
+    fetch('api_booking.php?action=get_test_centers', {
+        credentials: 'same-origin'
+    })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.data) {
+                renderTestCenters(data.data);
+            } else {
+                testCentersGrid.innerHTML = '<div style="text-align: center; padding: 40px; color: #EF4444;">Failed to load test centers</div>';
+                console.error('Error loading test centers:', data.message);
+            }
+        })
+        .catch(error => {
+            testCentersGrid.innerHTML = '<div style="text-align: center; padding: 40px; color: #EF4444;">Error loading test centers</div>';
+            console.error('Error fetching test centers:', error);
+        });
+}
 
+function renderTestCenters(testCenters) {
+    const testCentersGrid = document.getElementById('testCentersGrid');
+    
     testCentersGrid.innerHTML = testCenters.map(center => {
-        const statusClass = center.status === 'available' ? 'available' : 'full';
-        const statusText = center.status === 'available' ? 'Available' : 'Fully Booked';
+        const statusClass = 'available'; 
+        const statusText = 'Available';
+        const features = center.facilities || [];
+        const slug = center.name.toLowerCase().replace(/\s+/g, '-');
         
         return `
-            <div class="test-center" data-center-id="${center.id}">
+            <div class="test-center" data-center-id="${center.id}" data-center-slug="${slug}" data-center-name="${center.name}" data-center-address="${center.address}">
                 <div class="center-radio">
-                    <input type="radio" name="testCenter" value="${center.id}" id="${center.id}" ${center.status === 'full' ? 'disabled' : ''}>
-                    <label for="${center.id}"></label>
+                    <input type="radio" name="testCenter" value="${center.id}" id="center-${center.id}">
+                    <label for="center-${center.id}"></label>
                 </div>
                 <div class="center-header">
                     <div>
                         <div class="center-name">${center.name}</div>
-                        <div class="center-location">${center.location}</div>
+                        <div class="center-location">${center.district}</div>
                     </div>
                     <div class="center-status ${statusClass}">${statusText}</div>
                 </div>
                 <div class="center-details">
                     <div class="center-address">${center.address}</div>
                     <div class="center-features">
-                        ${center.features.map(feature => `<span class="feature-tag">${feature}</span>`).join('')}
+                        ${features.map(feature => `<span class="feature-tag">${feature}</span>`).join('')}
                     </div>
                 </div>
             </div>
@@ -137,19 +134,91 @@ function selectTestCenter(centerElement) {
 
     
     centerElement.classList.add('selected');
-
     
-    showCalendarSection();
+    selectedTestCenter = {
+        id: centerElement.dataset.centerId,
+        name: centerElement.dataset.centerName,
+        address: centerElement.dataset.centerAddress
+    };
 
-    LicenseXpress.showToast('✅ Test center selected. Choose your date.', 'success');
+    checkBookingCompletion();
+    LicenseXpress.showToast('✅ Test center selected.', 'success');
 }
 
-function showCalendarSection() {
-    const calendarSection = document.querySelector('.calendar-section');
-    calendarSection.classList.remove('hidden');
+function initializeReschedule() {
+    const rescheduleBtn = document.getElementById('rescheduleBtn');
+    const cancelReschedule = document.getElementById('cancelReschedule');
     
+    if (!rescheduleBtn) {
+        console.error('Reschedule button not found!');
+        return;
+    }
     
-    calendarSection.scrollIntoView({ behavior: 'smooth' });
+    console.log('Reschedule button found, attaching event listener');
+    
+    rescheduleBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        console.log('Reschedule button clicked!');
+        isRescheduling = true;
+        
+        
+        const testCenterSection = document.getElementById('testCenterSection');
+        const calendarSection = document.getElementById('calendarSection');
+        
+        console.log('Sections found:', {
+            testCenterSection: !!testCenterSection,
+            calendarSection: !!calendarSection
+        });
+        
+        if (!testCenterSection || !calendarSection) {
+            console.error('One or more sections not found!');
+            alert('Error: Some sections not found. Please check console for details.');
+            return;
+        }
+        
+        testCenterSection.classList.remove('hidden');
+        calendarSection.classList.remove('hidden');
+        
+        rescheduleBtn.classList.add('hidden');
+        testCenterSection.scrollIntoView({ behavior: 'smooth' });
+        
+        if (typeof LicenseXpress !== 'undefined' && LicenseXpress.showToast) {
+            LicenseXpress.showToast('📅 Select your preferred test center, date, and time', 'info');
+        } else {
+            console.log('Toast notification not available');
+        }
+    });
+    
+    if (cancelReschedule) {
+        cancelReschedule.addEventListener('click', function() {
+            isRescheduling = false;
+            const testCenterSection = document.getElementById('testCenterSection');
+            const calendarSection = document.getElementById('calendarSection');
+            const timeSlotsSection = document.getElementById('timeSlotsSection');
+            const rescheduleBtn = document.getElementById('rescheduleBtn');
+            
+            testCenterSection.classList.add('hidden');
+            calendarSection.classList.add('hidden');
+            timeSlotsSection.classList.add('hidden');
+            rescheduleBtn.classList.remove('hidden');
+            
+
+            document.querySelectorAll('.calendar-day.selected').forEach(day => {
+                day.classList.remove('selected');
+            });
+            document.querySelectorAll('.time-slot.selected').forEach(slot => {
+                slot.classList.remove('selected');
+            });
+            document.querySelectorAll('.test-center.selected').forEach(center => {
+                center.classList.remove('selected');
+            });
+            selectedDate = null;
+            selectedTime = null;
+            selectedTestCenter = null;
+            
+            LicenseXpress.showToast('Reschedule cancelled', 'info');
+        });
+    }
 }
 
 function initializeCalendar() {
@@ -158,7 +227,12 @@ function initializeCalendar() {
     const prevMonth = document.getElementById('prevMonth');
     const nextMonth = document.getElementById('nextMonth');
 
-    let currentDate = new Date();
+    
+    const appData = window.applicationData;
+    const originalScheduledDate = new Date(appData.practicalDate);
+    
+    
+    let currentDate = new Date(originalScheduledDate);
     let currentMonth = currentDate.getMonth();
     let currentYear = currentDate.getFullYear();
 
@@ -199,20 +273,19 @@ function initializeCalendar() {
             }
 
             
-            if (date < today) {
+            if (date.toDateString() === originalScheduledDate.toDateString()) {
+                dayElement.classList.add('original-date');
+                dayElement.title = 'Original scheduled date';
+            }
+
+            
+            if (date < originalScheduledDate) {
                 dayElement.classList.add('disabled');
             }
 
             
-            const minBookingDate = new Date();
-            minBookingDate.setDate(minBookingDate.getDate() + 7);
-            if (date < minBookingDate) {
-                dayElement.classList.add('too-soon');
-            }
-
-            
-            if (date >= minBookingDate && date.getMonth() === currentMonth) {
-                dayElement.addEventListener('click', () => selectDate(date, dayElement));
+            if (date >= originalScheduledDate && date.getMonth() === currentMonth) {
+                dayElement.addEventListener('click', () => selectCalendarDate(date, dayElement));
             }
 
             calendarDays.appendChild(dayElement);
@@ -220,7 +293,7 @@ function initializeCalendar() {
     }
 
     
-    function selectDate(date, element) {
+    function selectCalendarDate(date, element) {
         
         document.querySelectorAll('.calendar-day.selected').forEach(day => {
             day.classList.remove('selected');
@@ -228,11 +301,13 @@ function initializeCalendar() {
 
         
         element.classList.add('selected');
+        
+        selectedDate = date;
 
         
         showTimeSlotsSection(date);
 
-    
+        
         const selectedDateElement = document.getElementById('selectedDate');
         const dateOptions = { 
             weekday: 'long', 
@@ -242,19 +317,28 @@ function initializeCalendar() {
         };
         selectedDateElement.textContent = date.toLocaleDateString('en-US', dateOptions);
 
-        
-        updateBookingSummary(null, date, null, null);
-
         LicenseXpress.showToast('✅ Date selected. Choose a time slot.', 'success');
     }
 
-
+    
     prevMonth.addEventListener('click', () => {
         currentMonth--;
         if (currentMonth < 0) {
             currentMonth = 11;
             currentYear--;
         }
+        
+        
+        const newDate = new Date(currentYear, currentMonth, 1);
+        if (newDate < new Date(originalScheduledDate.getFullYear(), originalScheduledDate.getMonth(), 1)) {
+            currentMonth++;
+            if (currentMonth > 11) {
+                currentMonth = 0;
+                currentYear++;
+            }
+            return;
+        }
+        
         renderCalendar();
     });
 
@@ -281,6 +365,9 @@ function showTimeSlotsSection(selectedDate) {
     timeSlotsGrid.classList.add('hidden');
 
     
+    timeSlotsSection.scrollIntoView({ behavior: 'smooth' });
+
+    
     setTimeout(() => {
         loadTimeSlots(selectedDate);
     }, 1200);
@@ -291,27 +378,48 @@ function loadTimeSlots(selectedDate) {
     const timeSlotsGrid = document.getElementById('timeSlotsGrid');
 
     
-    timeSlotsLoading.classList.add('hidden');
-    timeSlotsGrid.classList.remove('hidden');
+    timeSlotsLoading.classList.remove('hidden');
+    timeSlotsGrid.classList.add('hidden');
+
+    if (!selectedTestCenter) {
+        LicenseXpress.showToast('Please select a test center first', 'error');
+        return;
+    }
+
+    const formattedDate = selectedDate.toISOString().split('T')[0];
 
     
-    const timeSlots = [
-        { time: '09:00 AM', icon: '🌅', available: true },
-        { time: '10:00 AM', icon: '☀️', available: true },
-        { time: '11:00 AM', icon: '⏰', available: false },
-        { time: '12:00 PM', icon: '🕛', available: true },
-        { time: '01:00 PM', icon: '🌤️', available: false },
-        { time: '02:00 PM', icon: '☀️', available: true },
-        { time: '03:00 PM', icon: '🌤️', available: true },
-        { time: '04:00 PM', icon: '🌆', available: true },
-        { time: '05:00 PM', icon: '🌇', available: false }
-    ];
+    fetch(`api_booking.php?action=get_time_slots&type=practical&date=${formattedDate}&test_center_id=${selectedTestCenter.id}`, {
+        credentials: 'same-origin'
+    })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayTimeSlots(data.data);
+            } else {
+                console.error('Failed to load time slots:', data.message);
+                displayFallbackTimeSlots();
+            }
+        })
+        .catch(error => {
+            console.error('Error loading time slots:', error);
+            displayFallbackTimeSlots();
+        });
+}
+
+function displayTimeSlots(timeSlots) {
+    const timeSlotsLoading = document.getElementById('timeSlotsLoading');
+    const timeSlotsGrid = document.getElementById('timeSlotsGrid');
+
+    timeSlotsLoading.classList.add('hidden');
+    timeSlotsGrid.classList.remove('hidden');
 
     timeSlotsGrid.innerHTML = '';
 
     timeSlots.forEach(slot => {
         const slotElement = document.createElement('div');
         slotElement.className = `time-slot ${slot.available ? 'available' : 'booked'}`;
+        slotElement.dataset.time = slot.time_24h;
         
         slotElement.innerHTML = `
             <div class="time-slot-icon">${slot.icon}</div>
@@ -320,39 +428,73 @@ function loadTimeSlots(selectedDate) {
         `;
 
         if (slot.available) {
-            slotElement.addEventListener('click', () => selectTimeSlot(slot.time, slotElement));
+            slotElement.addEventListener('click', () => selectTimeSlot(slot.time, slot.time_24h, slotElement));
         }
 
         timeSlotsGrid.appendChild(slotElement);
     });
 }
 
-function selectTimeSlot(time, element) {
+function displayFallbackTimeSlots() {
+    const timeSlotsLoading = document.getElementById('timeSlotsLoading');
+    const timeSlotsGrid = document.getElementById('timeSlotsGrid');
 
+    timeSlotsLoading.classList.add('hidden');
+    timeSlotsGrid.classList.remove('hidden');
+
+    
+    const timeSlots = [
+        { time: '09:00 AM', time_24h: '09:00:00', icon: '🌅', available: true },
+        { time: '10:00 AM', time_24h: '10:00:00', icon: '☀️', available: true },
+        { time: '11:00 AM', time_24h: '11:00:00', icon: '⏰', available: false },
+        { time: '12:00 PM', time_24h: '12:00:00', icon: '🕛', available: true },
+        { time: '01:00 PM', time_24h: '13:00:00', icon: '🌤️', available: false },
+        { time: '02:00 PM', time_24h: '14:00:00', icon: '☀️', available: true },
+        { time: '03:00 PM', time_24h: '15:00:00', icon: '🌤️', available: true },
+        { time: '04:00 PM', time_24h: '16:00:00', icon: '🌆', available: true }
+    ];
+
+    timeSlotsGrid.innerHTML = '';
+
+    timeSlots.forEach(slot => {
+        const slotElement = document.createElement('div');
+        slotElement.className = `time-slot ${slot.available ? 'available' : 'booked'}`;
+        slotElement.dataset.time = slot.time_24h;
+        
+        slotElement.innerHTML = `
+            <div class="time-slot-icon">${slot.icon}</div>
+            <div class="time-slot-time">${slot.time}</div>
+            <div class="time-slot-status">${slot.available ? '✓ Available' : '✗ Booked'}</div>
+        `;
+
+        if (slot.available) {
+            slotElement.addEventListener('click', () => selectTimeSlot(slot.time, slot.time_24h, slotElement));
+        }
+
+        timeSlotsGrid.appendChild(slotElement);
+    });
+}
+
+function selectTimeSlot(time, time24h, element) {
+    
     document.querySelectorAll('.time-slot.selected').forEach(slot => {
         slot.classList.remove('selected');
     });
 
     
     element.classList.add('selected');
+    
+    selectedTime = {
+        display: time,
+        value: time24h
+    };
 
     
-    showVehicleSection();
+    if (isRescheduling) {
+        document.getElementById('confirmReschedule').disabled = false;
+    }
 
-    
-    const selectedDateElement = document.getElementById('selectedDate');
-    const selectedDate = new Date(selectedDateElement.textContent);
-    updateBookingSummary(null, selectedDate, time, null);
-
-    LicenseXpress.showToast('✅ Time slot selected. Choose vehicle option.', 'success');
-}
-
-function showVehicleSection() {
-    const vehicleSection = document.getElementById('vehicleSection');
-    vehicleSection.classList.remove('hidden');
-    
-    
-    vehicleSection.scrollIntoView({ behavior: 'smooth' });
+    LicenseXpress.showToast('✅ Time slot selected.', 'success');
 }
 
 function initializeVehicleSelection() {
@@ -375,72 +517,29 @@ function selectVehicle(vehicleElement) {
 
     
     vehicleElement.classList.add('selected');
-
     
-    showBookingSummary();
-
+    const vehicleType = vehicleElement.dataset.vehicle;
+    const vehicleTitle = vehicleElement.querySelector('.option-title').textContent;
     
-    const selectedDateElement = document.getElementById('selectedDate');
-    const selectedDate = new Date(selectedDateElement.textContent);
-    const selectedTime = document.querySelector('.time-slot.selected .time-slot-time').textContent;
-    const selectedVehicle = vehicleElement.querySelector('.option-title').textContent;
-    
-    updateBookingSummary(null, selectedDate, selectedTime, selectedVehicle);
+    selectedVehicle = {
+        type: vehicleType,
+        title: vehicleTitle
+    };
 
-    LicenseXpress.showToast('✅ Vehicle selected. Review your booking.', 'success');
+    checkBookingCompletion();
+    LicenseXpress.showToast('✅ Vehicle selected.', 'success');
 }
 
-function showBookingSummary() {
-    const bookingSummary = document.getElementById('bookingSummary');
-    bookingSummary.classList.remove('hidden');
-    
-    
-    const confirmButton = document.getElementById('confirmBooking');
-    confirmButton.disabled = false;
-    
-    
-    bookingSummary.scrollIntoView({ behavior: 'smooth' });
-}
 
-function updateBookingSummary(center, date, time, vehicle) {
-    const summaryCenter = document.getElementById('summaryCenter');
-    const summaryDate = document.getElementById('summaryDate');
-    const summaryTime = document.getElementById('summaryTime');
-    const summaryVehicle = document.getElementById('summaryVehicle');
-
-    if (center) {
-        summaryCenter.textContent = center;
-    }
-
-    if (date) {
-        const dateOptions = { 
-            weekday: 'long', 
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric' 
-        };
-        summaryDate.textContent = date.toLocaleDateString('en-US', dateOptions);
-    }
-
-    if (time) {
-        summaryTime.textContent = time;
-    }
-
-    if (vehicle) {
-        summaryVehicle.textContent = vehicle;
-    }
-}
-
-function initializeTimeSlots() {
-    
-}
 
 function initializeNavigation() {
     
-    const confirmButton = document.getElementById('confirmBooking');
-    confirmButton.addEventListener('click', confirmBooking);
+    const confirmReschedule = document.getElementById('confirmReschedule');
+    if (confirmReschedule) {
+        confirmReschedule.addEventListener('click', handleReschedule);
+    }
 
-
+    
     const goToDashboard = document.getElementById('goToDashboard');
     goToDashboard.addEventListener('click', function() {
         window.location.href = 'dashboard.php';
@@ -453,117 +552,129 @@ function initializeNavigation() {
     });
 }
 
-function confirmBooking() {
-    const confirmButton = document.getElementById('confirmBooking');
-    const btnText = confirmButton.querySelector('.btn-text');
-    const btnSpinner = confirmButton.querySelector('.btn-spinner');
-
-    
-    const selectedCenter = document.querySelector('input[name="testCenter"]:checked');
-    const selectedDate = document.getElementById('selectedDate').textContent;
-    const selectedTime = document.querySelector('.time-slot.selected .time-slot-time').textContent;
-    const selectedVehicle = document.querySelector('input[name="vehicleType"]:checked');
-    
-    if (!selectedCenter || !selectedDate || !selectedTime || !selectedVehicle) {
-        LicenseXpress.showToast('Please complete all selections', 'error');
+function handleReschedule() {
+    if (!selectedDate || !selectedTime) {
+        LicenseXpress.showToast('Please select both date and time', 'error');
         return;
     }
 
+    if (!selectedTestCenter) {
+        LicenseXpress.showToast('Please select a test center first', 'error');
+        return;
+    }
+
+    const appData = window.applicationData;
     
-    confirmButton.disabled = true;
-    btnText.textContent = 'Processing Booking...';
-    btnSpinner.classList.remove('hidden');
+    
+    if (!appData.debugInfo.hasApplication || !appData.applicationId || appData.applicationId === 'APP-DEMO-001') {
+        LicenseXpress.showToast('You need to submit an application first before scheduling a practical test. Please go to the Application Form.', 'error');
+        
+        setTimeout(() => {
+            window.location.href = 'application-form.php';
+        }, 2000);
+        return;
+    }
+
+    const confirmBtn = document.getElementById('confirmReschedule');
+    confirmBtn.disabled = true;
+    confirmBtn.textContent = 'Rescheduling...';
+
+    const formattedDate = selectedDate.toISOString().split('T')[0];
 
     
-    setTimeout(() => {
-        processBooking(selectedCenter.value, selectedDate, selectedTime, selectedVehicle.value);
-    }, 2500);
-}
+    console.log('Reschedule Debug Info:', {
+        appData: appData,
+        debugInfo: appData.debugInfo,
+        applicationId: appData.applicationId,
+        selectedTestCenter: selectedTestCenter,
+        selectedDate: formattedDate,
+        selectedTime: selectedTime.value
+    });
 
-function processBooking(centerId, date, time, vehicleType) {
     
-    const tests = JSON.parse(localStorage.getItem('tests') || '{}');
-    const applicationState = JSON.parse(localStorage.getItem('applicationState') || '{}');
-
-    
-    tests.practical = {
-        scheduled: true,
-        date: new Date(date).toISOString(),
-        time: time,
-        center: getCenterName(centerId),
-        address: getCenterAddress(centerId),
-        vehicle: vehicleType === 'own' ? 'Own Vehicle' : 'Test Center Vehicle',
-        examiner: getCenterExaminer(centerId),
-        passed: false,
-        passedDate: null
+    const rescheduleData = {
+        application_id: appData.applicationId,
+        test_center_id: selectedTestCenter.id,
+        scheduled_date: formattedDate,
+        scheduled_time: selectedTime.value
     };
 
+    fetch('api_booking.php?action=reschedule_practical_test', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify(rescheduleData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            
+            document.getElementById('scheduledDate').textContent = selectedDate.toLocaleDateString('en-US', { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            });
+            document.getElementById('scheduledTime').textContent = selectedTime.display;
+            
+            
+            document.getElementById('scheduledCenter').textContent = selectedTestCenter.name;
 
-    applicationState.status = 'practical_scheduled';
-    applicationState.progress = 85;
+            
+            document.getElementById('testCenterSection').classList.add('hidden');
+            document.getElementById('calendarSection').classList.add('hidden');
+            document.getElementById('timeSlotsSection').classList.add('hidden');
+            document.getElementById('confirmReschedule').disabled = true;
+            
+            
+            disableRescheduleButton();
+            
+            isRescheduling = false;
+            
+            LicenseXpress.showToast('✅ Practical test rescheduled successfully! Redirecting to dashboard...', 'success');
+            
+            
+            setTimeout(() => {
+                window.location.href = 'dashboard.php';
+            }, 2000);
+        } else {
+            LicenseXpress.showToast(data.message || 'Failed to reschedule test', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error rescheduling:', error);
+        LicenseXpress.showToast('Error rescheduling test. Please try again.', 'error');
+    })
+    .finally(() => {
+        confirmBtn.disabled = false;
+        confirmBtn.textContent = 'Confirm Reschedule';
+    });
+}
 
-    localStorage.setItem('tests', JSON.stringify(tests));
-    localStorage.setItem('applicationState', JSON.stringify(applicationState));
 
+function formatDateForAPI(date) {
+    if (!date) return null;
+    const d = new Date(date);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+function formatTimeForAPI(time) {
+    if (!time) return null;
     
-    const currentUser = LicenseXpress.getCurrentUser();
-    LicenseXpress.sendEmailNotification(
-        currentUser?.email || 'user@example.com',
-        'Practical Test Scheduled',
-        `Your practical driving test has been scheduled for ${date} at ${time}. Please arrive 30 minutes before your scheduled time.`
-    );
-
-    LicenseXpress.sendSMSNotification(
-        currentUser?.phone || '+94771234567',
-        `Your practical test is scheduled for ${date} at ${time}. Arrive 30 minutes early.`
-    );
-
+    const [timePart, ampm] = time.split(' ');
+    const [hours, minutes] = timePart.split(':');
+    let hours24 = parseInt(hours);
     
-    showSuccessModal();
-}
-
-function getCenterName(centerId) {
-    const centers = {
-        'colombo-werahera': 'Colombo - Werahera Test Center',
-        'kandy-test-center': 'Kandy Test Center',
-        'galle-test-center': 'Galle Test Center',
-        'kurunegala-test-center': 'Kurunegala Test Center'
-    };
-    return centers[centerId] || 'Test Center';
-}
-
-function getCenterAddress(centerId) {
-    const addresses = {
-        'colombo-werahera': 'No. 123, Baseline Road, Colombo 09',
-        'kandy-test-center': 'No. 456, Peradeniya Road, Kandy',
-        'galle-test-center': 'No. 789, Galle Road, Galle',
-        'kurunegala-test-center': 'No. 321, Kurunegala Road, Kurunegala'
-    };
-    return addresses[centerId] || 'Test Center Address';
-}
-
-function getCenterExaminer(centerId) {
-    const examiners = {
-        'colombo-werahera': 'Mr. K. Perera',
-        'kandy-test-center': 'Ms. S. Fernando',
-        'galle-test-center': 'Mr. R. Silva',
-        'kurunegala-test-center': 'Mr. A. Rajapaksa'
-    };
-    return examiners[centerId] || 'Test Examiner';
-}
-
-function showSuccessModal() {
-    const successModal = document.getElementById('successModal');
-    successModal.classList.remove('hidden');
-
+    if (ampm === 'PM' && hours24 !== 12) {
+        hours24 += 12;
+    } else if (ampm === 'AM' && hours24 === 12) {
+        hours24 = 0;
+    }
     
-    const confirmButton = document.getElementById('confirmBooking');
-    const btnText = confirmButton.querySelector('.btn-text');
-    const btnSpinner = confirmButton.querySelector('.btn-spinner');
-
-    confirmButton.disabled = false;
-    btnText.textContent = 'Confirm Practical Test Booking';
-    btnSpinner.classList.add('hidden');
-
-    LicenseXpress.showToast('✅ Practical test booked successfully!', 'success');
+    return `${String(hours24).padStart(2, '0')}:${minutes}:00`;
 }
