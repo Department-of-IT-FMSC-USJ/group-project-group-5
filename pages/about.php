@@ -113,25 +113,25 @@ session_start();
                 <div class="team-grid">
                     <div class="team-member glass-card">
                         <div class="member-avatar">👨‍💼</div>
-                        <h3>John Smith</h3>
+                        <h3>Akash Abeygunawardena</h3>
                         <p class="member-role">CEO & Founder</p>
                         <p class="member-bio">Technology entrepreneur with 15+ years of experience in digital transformation.</p>
                     </div>
                     <div class="team-member glass-card">
                         <div class="member-avatar">👩‍💻</div>
-                        <h3>Sarah Johnson</h3>
+                        <h3>Ruveena Gamage</h3>
                         <p class="member-role">CTO</p>
                         <p class="member-bio">Full-stack developer and security expert specializing in government systems.</p>
                     </div>
                     <div class="team-member glass-card">
                         <div class="member-avatar">👨‍🎨</div>
-                        <h3>Mike Chen</h3>
+                        <h3>Avindi Getawakanda</h3>
                         <p class="member-role">Head of Design</p>
                         <p class="member-bio">UX/UI designer focused on creating intuitive and accessible user experiences.</p>
                     </div>
                     <div class="team-member glass-card">
                         <div class="member-avatar">👩‍🔧</div>
-                        <h3>Lisa Rodriguez</h3>
+                        <h3>Nethini Bandara</h3>
                         <p class="member-role">Head of Operations</p>
                         <p class="member-bio">Operations specialist ensuring smooth service delivery and customer satisfaction.</p>
                     </div>
@@ -161,7 +161,7 @@ session_start();
                 </div>
             </div>
 
-        
+            
             <div class="contact-cta glass-card">
                 <div class="cta-content">
                     <h2>Ready to Get Started?</h2>
