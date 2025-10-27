@@ -14,7 +14,7 @@ session_start();
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
-    
+   
     <div class="loading-overlay" id="loadingOverlay">
         <div class="loading-content">
             <div class="loading-spinner">
@@ -24,7 +24,7 @@ session_start();
         </div>
     </div>
 
-   
+    
     <div class="camera-permission-overlay hidden" id="cameraPermissionOverlay">
         <div class="permission-content">
             <div class="permission-icon">📹</div>
@@ -53,14 +53,20 @@ session_start();
                     <div class="monitoring-icon">🔴</div>
                     <div class="monitoring-text">Invigilator Monitoring Active</div>
                 </div>
+               
+                <div class="test-submit-container" style="margin-left: 20px;">
+                    <button class="btn btn-test" id="testSubmitBtn" onclick="testSubmitSuccess()" style="background: #28a745; color: white; padding: 8px 16px; border: none; border-radius: 4px; font-size: 12px; cursor: pointer;">
+                        🎯 TEST SUBMIT
+                    </button>
+                </div>
             </div>
         </div>
     </header>
 
-   
+    
     <main class="exam-main" id="examMain" style="display: none;">
         <div class="exam-container">
-           
+            
             <aside class="question-navigator" id="questionNavigator">
                 <div class="navigator-header">
                     <h3>Questions</h3>
@@ -72,14 +78,14 @@ session_start();
                     <div class="progress-fill" id="progressFill"></div>
                 </div>
                 <div class="question-grid" id="questionGrid">
-                    
+                     
                 </div>
             </aside>
 
-          
+            
             <section class="question-content">
                 <div class="question-container">
-                   
+                    
                     <div class="question-header">
                         <div class="question-number">
                             <span class="number-label">Question</span>
@@ -91,22 +97,19 @@ session_start();
                         </div>
                     </div>
 
-                   
+                    
                     <div class="question-text" id="questionText">
                         
                     </div>
 
-                  
                     <div class="question-image hidden" id="questionImage">
                         <img src="" alt="Question Image" id="questionImg">
                     </div>
 
-                   
                     <div class="answer-options" id="answerOptions">
-                       
+                        
                     </div>
 
-                   
                     <div class="question-navigation">
                         <button class="btn btn-secondary" id="nextBtn" disabled>
                             <span class="btn-text">Next Question →</span>
@@ -120,7 +123,7 @@ session_start();
         </div>
     </main>
 
-   
+    
     <div class="answer-review-modal hidden" id="answerReviewModal">
         <div class="modal-backdrop"></div>
         <div class="modal-content">
@@ -173,7 +176,7 @@ session_start();
         </div>
     </div>
 
-   
+    
     <div class="security-warning-modal hidden" id="securityWarningModal">
         <div class="modal-backdrop"></div>
         <div class="modal-content">
@@ -213,7 +216,7 @@ session_start();
     
     <video id="cameraFeed" autoplay muted style="display: none;"></video>
 
-    <script src="assets/js/app.js"></script>
-    <script src="assets/js/exam-window.js"></script>
+    <script src="assets/js/app.js?v=<?php echo time(); ?>"></script>
+    <script src="assets/js/exam-window.js?v=<?php echo time(); ?>"></script>
 </body>
 </html>

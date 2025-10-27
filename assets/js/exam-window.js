@@ -1,21 +1,28 @@
 
-async function fetchQuestions() {
+ async function fetchQuestions() {
     try {
+        console.log('Fetching questions from: exam-window-backend.php?action=getQuestions');
         const res = await fetch('exam-window-backend.php?action=getQuestions', {
             method: 'GET',
             credentials: 'same-origin',
             headers: { 'Accept': 'application/json' }
         });
+        console.log('Response status:', res.status);
+        console.log('Response headers:', res.headers);
+        
         if (res.status === 401) { 
             alert('Your session has expired. Please login again.');
             window.location.href = 'login.php'; 
             return []; 
         }
         const json = await res.json();
+        console.log('Response JSON:', json);
+        
         if (!json.success) {
             console.error('Failed to load questions:', json.error);
             return [];
         }
+        console.log('Successfully loaded questions:', json.data);
         return json.data;
     } catch (err) {
         console.error('Network or parse error fetching questions', err);
@@ -47,105 +54,43 @@ async function fetchQuestionById(id) {
     }
 }
 
-
-window.suppressSecurityEvents = window.suppressSecurityEvents || false;
-
-
-try { window.onbeforeunload = null; } catch (e) {}
-
-//  POST with session cookie
 async function submitAnswers(payload) {
     try {
+        console.log('Submitting to: exam-window-backend.php?action=submitAnswers');
+        console.log('Payload being sent:', payload);
+        
         const res = await fetch('exam-window-backend.php?action=submitAnswers', {
             method: 'POST',
             credentials: 'same-origin',
             headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
             body: JSON.stringify(payload)
         });
-
-        // handle errors in response
+        
+        console.log('Response status:', res.status);
+        console.log('Response headers:', res.headers);
+        
+        // Handle different response 
         if (res.status === 401) {
-           
-            return { success: false, error: 'Not authenticated. Please login and try again.' , status:401};
+            console.error('Authentication failed - User ID might be missing or invalid');
+            return { success: false, error: 'Authentication failed. Please ensure you are logged in.' };
         }
-        if (res.status === 403) {
-            const txt = await res.text().catch(()=>null);
-            let body = null;
-            try { body = JSON.parse(txt); } catch(e){}
-            return { success: false, error: (body && body.error) ? body.error : 'Not permitted to submit exam.', status:403 };
+        
+        if (res.status === 400) {
+            console.error('Bad request - Invalid data sent');
+            return { success: false, error: 'Invalid exam data. Please try again.' };
         }
-
-        const json = await res.json().catch(() => null);
+        
+        if (res.status === 500) {
+            console.error('Server error');
+            return { success: false, error: 'Server error. Please contact support.' };
+        }
+        
+        const json = await res.json();
+        console.log('Response JSON:', json);
         return json;
     } catch (err) {
-        console.error('submitAnswers network error', err);
-        return { success: false, error: 'Network error while submitting exam' };
-    }
-}
-
-async function submitExam() {
-    if (typeof examTerminated !== 'undefined' && examTerminated) return;
-
-    
-    if (!Array.isArray(answers)) answers = new Array(totalQuestions).fill(null);
-    const unanswered = answers.filter(a => a === null || typeof a === 'undefined').length;
-    if (unanswered > 0) {
-        alert(`Please answer all questions before submitting (${unanswered} unanswered).`);
-        return;
-    }
-
-   
-    suppressSecurityEvents = true;
-    try {
-        
-        const confirmed = confirm('Are you sure you want to submit your exam? You cannot change your answers after submission.');
-        if (!confirmed) return;
-
-        showSubmissionOverlay && showSubmissionOverlay();
-
-        const payload = { answers: answers };
-        console.log('Submitting exam payload', payload);
-
-        const res = await submitAnswers(payload);
-        console.log('Submission response', res);
-
-        if (!res || !res.success) {
-            const message = res && res.error ? res.error : 'Unknown error submitting exam';
-            alert(message);
-            if (res && res.status === 401) {
-                
-                window.location.href = 'login.php';
-            } else if (res && res.status === 403) {
-                
-                window.location.href = 'application-status.php';
-            }
-            return;
-        }
-
-        
-        const score = Number(res.score) || 0;
-        const total = Number(res.total) || totalQuestions;
-        const percentage = Number(res.percentage) || Math.round((score / total) * 100);
-        const passed = !!res.passed;
-        const testId = res.test_id || null;
-
-        try { localStorage.setItem('lastExamResult', JSON.stringify({ score, total, percentage, passed, testId, timestamp: new Date().toISOString() })); } catch(e){}
-
-        
-        if (typeof showResultsModal === 'function') {
-            showResultsModal(score, total, percentage, passed, testId);
-        } else {
-            alert(`Result: ${score}/${total} (${percentage}%) - ${passed ? 'PASSED' : 'FAILED'}`);
-        }
-
-        
-        examTerminated = true;
-    } catch (err) {
-        console.error('submitExam error', err);
-        alert('Unexpected error while submitting exam. Please contact support.');
-    } finally {
-        suppressSecurityEvents = false;
-        hideSubmissionOverlay && hideSubmissionOverlay();
+        console.error('Network error submitting answers:', err);
+        return { success: false, error: 'Network error. Please check your connection and try again.' };
     }
 }
 
@@ -159,8 +104,8 @@ let timeLeft = 3600;
 let cameraStream = null;
 let screenshotBlocked = false;
 
-let examQuestions = [];       
-let totalQuestions = 0;       
+let examQuestions = [];        
+let totalQuestions = 0;        
 
 
 let suppressSecurityEvents = false;
@@ -190,8 +135,13 @@ function requestCameraPermission() {
                 permissionOverlay.classList.add('hidden');
 
                 
+                console.log('Starting to fetch questions...');
                 const questions = await fetchQuestions();
+                console.log('Questions received:', questions);
+                console.log('Questions length:', questions ? questions.length : 'null/undefined');
+                
                 if (!Array.isArray(questions) || questions.length === 0) {
+                    console.error('No questions loaded, redirecting to dashboard');
                     hideLoadingOverlay();
                     alert('Unable to load exam questions. Please contact support.');
                     window.location.href = 'dashboard.php';
@@ -199,6 +149,8 @@ function requestCameraPermission() {
                 }
                 examQuestions = questions;
                 totalQuestions = examQuestions.length;
+                console.log('Exam questions set:', examQuestions);
+                console.log('Total questions:', totalQuestions);
                 answers = new Array(totalQuestions).fill(null); // <-- ensure this runs after fetching questions
 
                 startExam();
@@ -224,7 +176,7 @@ function startExam() {
     if (typeof attachNextButtonHandler === 'function') attachNextButtonHandler();
     startTimer();
     initializeSecurityMeasures();
-    enforceFullScreen();
+    enforceFullScreen(); 
     setTimeout(() => { examStarted = true; }, 3000);
     LicenseXpress.showToast('✅ Exam started successfully! Good luck!', 'success');
 }
@@ -235,13 +187,13 @@ function initializeQuestionNavigator() {
     if (!questionGrid) return;
     questionGrid.innerHTML = '';
 
-   
+    
     for (let i = 0; i < totalQuestions; i++) {
         const questionItem = document.createElement('div');
         questionItem.className = 'question-item unanswered';
         questionItem.textContent = i + 1;
         questionItem.dataset.question = i;
-        
+       
         questionGrid.appendChild(questionItem);
     }
 
@@ -320,23 +272,23 @@ function ensureAnswersInitialized() {
 
 
 function selectAnswer(optionIndex) {
-    // guards
+    
     if (typeof currentQuestion !== 'number' || currentQuestion < 0 || currentQuestion >= totalQuestions) {
         console.warn('selectAnswer: invalid currentQuestion', currentQuestion);
         return;
     }
 
-  
+
     answers[currentQuestion] = Number(optionIndex);
 
-    
+
     const optionEls = document.querySelectorAll('#answerOptions .answer-option');
     optionEls.forEach((el, idx) => {
         el.classList.toggle('selected', idx === optionIndex);
     });
 
-    
-    updateQuestionNavigator();
+    t
+    updateQuestionNavigator(); 
     updateProgress();
     updateNavigationButton();
 
@@ -360,20 +312,22 @@ function updateNavigationButton() {
     }
 }
 
+
 function attachNextButtonHandler() {
     const nextBtn = document.getElementById('nextBtn');
     if (!nextBtn) return;
+
 
     nextBtn.onclick = null;
 
     nextBtn.addEventListener('click', function (e) {
         e.preventDefault();
-        
+
         if (nextBtn.disabled) {
             alert('Please select an answer before proceeding');
             return;
         }
-       
+        
         if (!(answers[currentQuestion] !== null && answers[currentQuestion] !== undefined)) {
             alert('Please select an answer before proceeding');
             return;
@@ -383,10 +337,13 @@ function attachNextButtonHandler() {
             submitExam();
             return;
         }
-
+        
         loadQuestion(currentQuestion + 1);
     }, { passive: false });
 }
+
+
+
 
 
 function updateQuestionNavigator() {
@@ -395,11 +352,12 @@ function updateQuestionNavigator() {
         
         item.classList.remove('current', 'answered', 'unanswered', 'locked');
 
-        
         if (index === currentQuestion) {
             item.classList.add('current');
+           
             if (answers[index] !== null) item.classList.add('answered');
         } else {
+            
             if (answers[index] !== null) {
                 item.classList.add('answered');
             } else {
@@ -423,7 +381,7 @@ window.nextQuestion = function() {
     
     const nextIndex = currentQuestion + 1;
     currentQuestion = nextIndex;
-   
+    
     loadQuestion(currentQuestion);
     updateQuestionNavigator();
     updateProgress();
@@ -472,12 +430,65 @@ function updateTimerDisplay() {
     }
 }
 
+async function submitExam() {
+    if (examTerminated) {
+        console.log('Exam already terminated, ignoring submit');
+        return;
+    }
+    
+    console.log('submitExam called', { answers, totalQuestions });
+    
+    
+    const unanswered = answers.filter(a => a === null || a === undefined).length;
+    if (unanswered > 0) {
+        alert(`Please answer all questions before submitting (${unanswered} unanswered).`);
+        return;
+    }
+
+    
+    isSubmitting = true;
+    suppressSecurityEvents = true;
+    
+    try {
+        const confirmed = confirm('Are you sure you want to submit your exam? You cannot change your answers after submission.');
+        if (!confirmed) {
+            isSubmitting = false;
+            suppressSecurityEvents = false;
+            return;
+        }
+
+        showSubmissionOverlay();
+        console.log('Calling processExamSubmission...');
+        await processExamSubmission();
+    } finally {
+        isSubmitting = false;
+        suppressSecurityEvents = false;
+        hideSubmissionOverlay();
+    }
+}
+
 
 async function processExamSubmission() {
     try {
         if (timerInterval) clearInterval(timerInterval);
+        
+        suppressSecurityEvents = true;
+        examTerminated = false;
 
-        const payload = { answers: answers };
+        const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+        const userId = currentUser.id || currentUser.userId;
+        
+        console.log('Current user from localStorage:', currentUser);
+        console.log('Extracted userId:', userId);
+        console.log('Available fields:', Object.keys(currentUser));
+        
+        
+        const payload = { 
+            answers: answers,
+            userId: userId,
+            userIdString: currentUser.userId,  
+            userIdInt: currentUser.id           
+        };
         console.log('Submitting payload:', payload);
         showSubmissionOverlay();
 
@@ -487,31 +498,51 @@ async function processExamSubmission() {
         hideSubmissionOverlay();
 
         if (!res || !res.success) {
-            alert('Error submitting exam: ' + (res && res.error ? res.error : 'Unknown error') + '\nPlease contact support.');
+            console.error('Submission failed:', res);
+            
+            const errorMsg = res && res.error ? res.error : 'Unknown error occurred';
+            LicenseXpress.showToast(`❌ Exam submission failed: ${errorMsg}`, 'error');
+            
+            
+            setTimeout(() => {
+                
+                suppressSecurityEvents = false;
+            }, 2000);
             return;
         }
 
+        
+        console.log('Exam submitted successfully:', res);
         const score = Number.isFinite(Number(res.score)) ? Number(res.score) : 0;
-        const total = Number.isFinite(Number(res.total)) ? Number(res.total) : totalQuestions;
-        const percentage = total > 0 ? Math.round((score / total) * 100) : 0;
-        const passed = (typeof res.passed === 'boolean') ? res.passed : (percentage >= 40);
-
-        try { 
-            localStorage.setItem('lastExamResult', JSON.stringify({ 
-                score, total, percentage, passed, timestamp: new Date().toISOString() 
-            })); 
-        } catch (e) {
-            console.error('Failed to save to localStorage:', e);
-        }
-
-        window.__lastExamServerResponse = res;
-        showAnswerReview(score, percentage, passed);
-    } catch (err) {
-        console.error('processExamSubmission error:', err);
-        alert('An unexpected error occurred while submitting the exam. Please contact support.');
-    } finally {
-        suppressSecurityEvents = false;
+        const total = Number.isFinite(Number(res.total)) ? Number(res.total) : 50;
+        const passed = res.passed === true;
+        
+        
+        localStorage.setItem('lastExamResult', JSON.stringify({
+            score: score,
+            total: total,
+            passed: passed,
+            testId: res.test_id,
+            timestamp: new Date().toISOString()
+        }));
+        
+       
+        LicenseXpress.showToast(`✅ Exam submitted successfully! Score: ${score}/${total}`, 'success');
+        
+        
+        setTimeout(() => {
+            window.location.href = 'dashboard.php';
+        }, 2000);
+        
+    } catch (error) {
+        console.error('Error in exam submission process:', error);
         hideSubmissionOverlay();
+        LicenseXpress.showToast('❌ An error occurred during submission. Please try again.', 'error');
+        
+       
+        setTimeout(() => {
+            suppressSecurityEvents = false;
+        }, 2000);
     }
 }
 
@@ -579,7 +610,7 @@ function showResults(score, percentage, passed) {
     const proceedBtn = document.getElementById('proceedToDocuments');
     const rescheduleBtn = document.getElementById('rescheduleExam');
 
-    
+   
     if (passed) {
         if (resultsIcon) resultsIcon.textContent = '🎉';
         if (resultsTitle) resultsTitle.textContent = 'Exam Passed!';
@@ -600,6 +631,7 @@ function showResults(score, percentage, passed) {
         viewResultsBtn.style.display = 'inline-block';
         viewResultsBtn.replaceWith(viewResultsBtn.cloneNode(true));
         document.getElementById('viewResultsPage').addEventListener('click', () => {
+            
             window.location.href = 'exam-results.php';
         });
     }
@@ -615,6 +647,8 @@ function showResults(score, percentage, passed) {
     }
 
     modal.classList.remove('hidden');
+
+    
     updateExamResults(score, percentage, passed);
 }
 
@@ -666,22 +700,22 @@ function initializeSecurityMeasures() {
     
 }
 
-// Prevent PrintScreen 
+
 function preventScreenshots() {
     document.addEventListener('keydown', function(e) {
-        // PrintScreen
+        
         if (e.key === 'PrintScreen') {
             e.preventDefault();
             showSecurityWarning('Screenshot attempt detected!');
             return false;
         }
-        // Windows Screenshots
+       
         if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 's') {
             e.preventDefault();
             showSecurityWarning('Screenshot attempt detected!');
             return false;
         }
-        // Mac screenshot 
+        
         if ((e.metaKey || e.ctrlKey) && e.shiftKey && (e.key === '3' || e.key === '4' || e.key === '5')) {
             e.preventDefault();
             showSecurityWarning('Screenshot attempt detected!');
@@ -697,7 +731,7 @@ function preventScreenshots() {
     });
 }
 
-// Block copy/paste/cut 
+
 function preventCopyPasteCut() {
     document.addEventListener('copy', function(e) { e.preventDefault(); showSecurityWarning('Copying content detected!'); return false; });
     document.addEventListener('paste', function(e) { e.preventDefault(); showSecurityWarning('Pasting content detected!'); return false; });
@@ -712,7 +746,7 @@ function preventCopyPasteCut() {
     });
 }
 
-// Block right click menu
+
 function preventRightClick() {
     document.addEventListener('contextmenu', function(e) {
         e.preventDefault();
@@ -721,7 +755,6 @@ function preventRightClick() {
     });
 }
 
-//Block tab switching
 function preventTabSwitching() {
     document.addEventListener('visibilitychange', function() {
         if (suppressSecurityEvents) return;
@@ -738,7 +771,7 @@ function preventTabSwitching() {
     });
 }
 
-// Block common shortcuts
+
 function preventDeveloperTools() {
     document.addEventListener('keydown', function(e) {
         
@@ -770,7 +803,7 @@ function clearClipboard() {
     setInterval(() => {
         try {
             if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText('');
-        } catch (err) { /* ignore */ }
+        } catch (err) {  }
     }, 1000);
 }
 
@@ -779,7 +812,7 @@ let isSubmitting = false;
 
 function addUnloadWarning() {
     window.addEventListener('beforeunload', function(e) {
-        
+       
         if (isSubmitting || examTerminated) {
             return;
         }
@@ -806,7 +839,6 @@ function blockDragAndDrop() {
     document.addEventListener('dragstart', function(e) { e.preventDefault(); return false; });
     document.addEventListener('drop', function(e) { e.preventDefault(); return false; });
 }
-
 
 function monitorVisibilityAndFocus() {
     document.addEventListener('focusin', function(e) {
@@ -846,11 +878,11 @@ function showSecurityWarning(reason) {
     
     if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
 
-    
+
     if (cameraStream) {
         try {
             cameraStream.getTracks().forEach(track => track.stop());
-        } catch (err) {  }
+        } catch (err) { }
     }
 
     examTerminated = true;
@@ -897,10 +929,118 @@ function hideSubmissionOverlay() {
 document.addEventListener('click', function(e) {
     const btn = e.target.id === 'nextBtn' ? e.target : (e.target.closest && e.target.closest('#nextBtn'));
     if (!btn) return;
+    
     if (btn.disabled) {
         e.preventDefault();
         return;
     }
+    
     nextQuestion();
 });
+
+
+async function testSubmitSuccess() {
+    const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+    const userId = currentUser.id || currentUser.userId;
+    
+    if (!userId) {
+        alert('❌ No user ID available for test submission');
+        return;
+    }
+    
+    try {
+        
+        const confirmed = confirm('🎯 TEST SUBMIT: This will simulate a successful exam submission and update your status to "theory_passed". Continue?');
+        if (!confirmed) {
+            return;
+        }
+        
+        
+        const backendResponse = await fetch('exam-window-backend.php?action=testSubmit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: userId })
+        });
+        
+        const backendResult = await backendResponse.text();
+        console.log('Backend response:', backendResult);
+        
+        let backendSuccess = false;
+        let mockExamResult = {
+            success: true,
+            score: 45,
+            total: 50,
+            passed: true,
+            test_id: 'TEST_' + Date.now(),
+            message: 'Exam submitted successfully!'
+        };
+        
+        if (backendResponse.ok) {
+            try {
+                const backendData = JSON.parse(backendResult);
+                if (backendData.success) {
+                    backendSuccess = true;
+                    mockExamResult = {
+                        success: true,
+                        score: backendData.score,
+                        total: backendData.total,
+                        passed: backendData.passed,
+                        test_id: backendData.test_id,
+                        message: backendData.message
+                    };
+                }
+            } catch (e) {
+                console.log('Backend response parsing failed, using mock data');
+            }
+        }
+        
+        console.log('Simulating successful exam submission:', mockExamResult);
+        
+        
+        localStorage.setItem('lastExamResult', JSON.stringify({
+            score: mockExamResult.score,
+            total: mockExamResult.total,
+            passed: mockExamResult.passed,
+            testId: mockExamResult.test_id,
+            timestamp: new Date().toISOString()
+        }));
+        
+        
+        const updatedUser = {
+            ...currentUser,
+            status: 'theory_passed',
+            lastUpdated: new Date().toISOString()
+        };
+        localStorage.setItem('currentUser', JSON.stringify(updatedUser));
+        
+        
+        const successMessage = `🎉 TEST SUBMIT SUCCESSFUL!
+        
+Score: ${mockExamResult.score}/${mockExamResult.total} (${Math.round((mockExamResult.score/mockExamResult.total)*100)}%)
+Status: PASSED ✅
+Backend Update: ${backendSuccess ? '✅ Database Updated' : '⚠️ Frontend Only'}
+User Status: theory_passed
+
+Next Steps:
+✅ Exam results stored in localStorage
+✅ User status updated to "theory_passed"
+${backendSuccess ? '✅ Database status updated to "theory_passed"\n✅ Theory test record created in database' : ''}
+✅ Dashboard will show "Theory Test Results" section
+✅ Dashboard will show "What's Next?" section
+
+Click OK to go to the dashboard and see the changes!`;
+        
+        alert(successMessage);
+        
+       
+        window.location.href = 'dashboard.php';
+        
+    } catch (error) {
+        console.error('Test submission failed:', error);
+        alert(`❌ Test submission failed: ${error.message}`);
+    }
+}
+
+
+window.testSubmitSuccess = testSubmitSuccess;
  
