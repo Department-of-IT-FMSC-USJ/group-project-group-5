@@ -722,7 +722,14 @@ function initializeNavigation() {
     if (logoutBtn) {
         logoutBtn.addEventListener('click', function() {
             if (confirm('Are you sure you want to logout?')) {
-                window.location.href = 'logout.php';
+                // Clear admin authentication
+                localStorage.removeItem('isAdminAuthenticated');
+                localStorage.removeItem('adminUsername');
+                localStorage.removeItem('adminAuthExpiry');
+                localStorage.removeItem('adminLoginTime');
+                
+                // Redirect to admin login
+                window.location.href = 'admin-login.php';
             }
         });
     }
