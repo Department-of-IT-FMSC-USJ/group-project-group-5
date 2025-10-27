@@ -3,18 +3,19 @@
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Admin Dashboard initializing...');
     
-    // Check admin authentication
+    
     if (!checkAdminAuth()) {
         console.log('Admin not authenticated, redirecting...');
         window.location.href = 'admin-login.php';
         return;
     }
 
-
+    
     initializeAdminDashboard();
 });
 
 function checkAdminAuth() {
+    
     return true;
 }
 
@@ -45,16 +46,15 @@ async function loadDashboardData() {
         
         showLoadingState();
         
-        // Load all data 
+        
         const results = await Promise.allSettled([
             loadStats(),
             loadRecentApplications(),
             loadPendingReviews(),
-            loadSystemMetrics(),
             loadActivityLog()
         ]);
         
-        // Check failures
+       
         const failures = results.filter(r => r.status === 'rejected');
         if (failures.length > 0) {
             console.error('Some data failed to load:', failures);
@@ -73,8 +73,6 @@ async function loadDashboardData() {
     }
 }
 
-
-// LOAD STATISTICS
 
 async function loadStats() {
     console.log('Loading stats...');
@@ -113,8 +111,6 @@ async function loadStats() {
     }
 }
 
-
-// LOAD RECENT APPLICATIONS
 
 async function loadRecentApplications() {
     console.log('Loading recent applications...');
@@ -178,8 +174,6 @@ function displayRecentApplications(applications) {
     }).join('');
 }
 
-
-// LOAD PENDING REVIEWS
 
 async function loadPendingReviews() {
     console.log('Loading pending reviews...');
@@ -245,35 +239,6 @@ function displayPendingReviews(applications) {
 }
 
 
-// LOAD SYSTEM METRICS
-async function loadSystemMetrics() {
-    console.log('Loading system metrics...');
-    
-    try {
-        const response = await fetch('api_admin-dashboard.php?action=getSystemMetrics');
-        
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const result = await response.json();
-        console.log('System metrics response:', result);
-        
-        if (result.success) {
-            const metrics = result.data;
-            updateElement('activeUsers', metrics.activeUsers || 0);
-            console.log('System metrics loaded successfully');
-        } else {
-            throw new Error(result.message || 'Failed to load system metrics');
-        }
-    } catch (error) {
-        console.error('Error loading system metrics:', error);
-        updateElement('activeUsers', 0);
-        
-    }
-}
-
-// LOAD ACTIVITY LOG
 
 async function loadActivityLog() {
     console.log('Loading activity log...');
@@ -479,14 +444,12 @@ function showLoadingState() {
     });
 }
 
-function hideLoadingState() {
-    
-}
+
 
 function showToast(message, type = 'info') {
     console.log(`[${type.toUpperCase()}] ${message}`);
     
-   
+    
     if (typeof LicenseXpress !== 'undefined' && typeof LicenseXpress.showToast === 'function') {
         LicenseXpress.showToast(message, type);
     } else {
@@ -500,7 +463,7 @@ function showToast(message, type = 'info') {
 function initializeNavigation() {
     console.log('Initializing navigation...');
     
-    // Logout 
+    
     const logoutBtn = document.getElementById('logoutBtn');
     if (logoutBtn) {
         logoutBtn.addEventListener('click', function() {
@@ -510,7 +473,7 @@ function initializeNavigation() {
         });
     }
 
-    // Quick actions
+    
     const reviewBtn = document.getElementById('reviewApplications');
     if (reviewBtn) {
         reviewBtn.addEventListener('click', function() {
@@ -539,7 +502,7 @@ function initializeNavigation() {
         });
     }
 
-    // Refresh activity
+    
     const refreshBtn = document.getElementById('refreshActivity');
     if (refreshBtn) {
         refreshBtn.addEventListener('click', async function() {
@@ -579,8 +542,6 @@ async function generateReport() {
     }
 }
 
-
-// AUTO-REFRESH 
 
 
 let refreshInterval;

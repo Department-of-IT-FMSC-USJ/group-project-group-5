@@ -20,7 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 require_once 'database/database_connection.php';
 require_once 'database/queries.php';
 
-//Check authentication
+
 
 
 function isLocalRequest() {
@@ -35,7 +35,7 @@ function checkAdminAuth() {
     if (isLocalRequest()) {
         error_log('[DEBUG] Auth bypassed for local request from ' . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
         $_SESSION['admin_logged_in'] = true;  
-        $_SESSION['admin_id'] = 1; 
+        $_SESSION['admin_id'] = 1;  
         return true;
     }
 
@@ -107,9 +107,6 @@ try {
             getPendingReviews();
             break;
             
-        case 'getSystemMetrics':
-            getSystemMetrics();
-            break;
             
         case 'getActivityLog':
             getActivityLog();
@@ -129,32 +126,30 @@ try {
 }
 
 
-// GET DASHBOARD STATISTICS
-
 
 function getDashboardStats() {
     global $db;
     
     try {
-        // Get total applications
+        
         $totalApps = $db->fetch("SELECT COUNT(*) as count FROM applications");
         
-        // Get pending applications
+        
         $pendingApps = $db->fetch("SELECT COUNT(*) as count FROM applications WHERE status = 'pending_verification'");
         
-        // Get approved today
+        
         $approvedToday = $db->fetch("SELECT COUNT(*) as count FROM applications WHERE status = 'verified' AND DATE(verified_date) = CURDATE()");
         
-        // Get completed tests
+        
         $completedTests = $db->fetch("SELECT COUNT(*) as count FROM theory_tests WHERE completed_at IS NOT NULL");
         
-        // Get applications this week
+        
         $appsThisWeek = $db->fetch("SELECT COUNT(*) as count FROM applications WHERE YEARWEEK(created_at, 1) = YEARWEEK(CURDATE(), 1)");
         
-        // Get pending today
+        
         $pendingToday = $db->fetch("SELECT COUNT(*) as count FROM applications WHERE status = 'pending_verification' AND DATE(submitted_date) = CURDATE()");
         
-        // Get tests this week
+        
         $testsThisWeek = $db->fetch("SELECT COUNT(*) as count FROM theory_tests WHERE YEARWEEK(completed_at, 1) = YEARWEEK(CURDATE(), 1) AND completed_at IS NOT NULL");
         
         $stats = [
@@ -176,8 +171,6 @@ function getDashboardStats() {
     }
 }
 
-
-// GET RECENT APPLICATIONS
 
 
 function getRecentApplications() {
@@ -223,8 +216,6 @@ function getRecentApplications() {
 }
 
 
-// GET PENDING REVIEWS
-
 
 function getPendingReviews() {
     global $db;
@@ -264,43 +255,6 @@ function getPendingReviews() {
 }
 
 
-function getSystemMetrics() {
-    global $db;
-    
-    try {
-        
-        $activeUsers = $db->fetch("SELECT COUNT(DISTINCT user_id) as count FROM user_sessions WHERE expires_at > NOW()");
-        
-        
-        $uptime = '99.9%';
-        
-        
-        $dbStatus = 'Healthy';
-        try {
-            $db->getConnection()->query('SELECT 1');
-        } catch (Exception $e) {
-            $dbStatus = 'Error';
-        }
-        
-    
-        $lastBackup = '2 hours ago';
-        
-        $metrics = [
-            'activeUsers' => (int)$activeUsers['count'],
-            'serverUptime' => $uptime,
-            'databaseStatus' => $dbStatus,
-            'lastBackup' => $lastBackup
-        ];
-        
-        logAdminAction('api_access', 'system_metrics', null, null);
-        
-        sendJsonResponse(true, 'System metrics retrieved successfully', $metrics);
-        
-    } catch (Exception $e) {
-        throw new Exception('Failed to retrieve system metrics: ' . $e->getMessage());
-    }
-}
-
 
 
 function getActivityLog() {
@@ -329,7 +283,7 @@ function getActivityLog() {
         $stmt->execute();
         $activities = $stmt->fetchAll();
         
-        // Parse JSON details if present
+        
         foreach ($activities as &$activity) {
             if ($activity['details']) {
                 $activity['details'] = json_decode($activity['details'], true);
@@ -344,8 +298,6 @@ function getActivityLog() {
 }
 
 
-// GET APPLICATION DETAILS
-
 
 function getApplicationDetails() {
     global $db;
@@ -357,7 +309,7 @@ function getApplicationDetails() {
             sendJsonResponse(false, 'Application ID is required', null, 400);
         }
         
-        // Get application with user details
+        
         $sql = "SELECT 
                     a.*,
                     u.full_name,
@@ -378,25 +330,25 @@ function getApplicationDetails() {
             sendJsonResponse(false, 'Application not found', null, 404);
         }
         
-        // Get documents
+        
         $documents = $db->fetchAll(
             "SELECT * FROM application_documents WHERE application_id = :app_id",
             ['app_id' => $applicationId]
         );
         
-        // Get payment info
+        
         $payment = $db->fetch(
             "SELECT * FROM payments WHERE application_id = :app_id ORDER BY created_at DESC LIMIT 1",
             ['app_id' => $applicationId]
         );
         
-        // Get theory test info
+        
         $theoryTest = $db->fetch(
             "SELECT * FROM theory_tests WHERE application_id = :app_id ORDER BY created_at DESC LIMIT 1",
             ['app_id' => $applicationId]
         );
         
-        // Get practical test info
+        
         $practicalTest = $db->fetch(
             "SELECT pt.*, tc.name as center_name, tc.address as center_address 
              FROM practical_tests pt 
@@ -406,7 +358,7 @@ function getApplicationDetails() {
             ['app_id' => $applicationId]
         );
         
-        // Combine all data
+        
         $applicationDetails = [
             'application' => $application,
             'documents' => $documents,

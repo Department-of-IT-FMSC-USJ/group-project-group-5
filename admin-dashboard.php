@@ -62,7 +62,7 @@ session_start();
                 <p class="dashboard-subtitle">Monitor and manage LicenseXpress applications</p>
             </div>
 
-
+            
             <div class="stats-overview">
                 <div class="stat-card glass-card">
                     <div class="stat-icon">📋</div>
@@ -100,7 +100,7 @@ session_start();
 
             
             <div class="dashboard-grid">
-
+                
                 <div class="dashboard-card glass-card">
                     <div class="card-header">
                         <h3>📋 Recent Applications</h3>
@@ -113,7 +113,7 @@ session_start();
                     </div>
                 </div>
 
-
+                
                 <div class="dashboard-card glass-card">
                     <div class="card-header">
                         <h3>⏳ Pending Reviews</h3>
@@ -126,35 +126,7 @@ session_start();
                     </div>
                 </div>
 
-
-                <div class="dashboard-card glass-card">
-                    <div class="card-header">
-                        <h3>🖥️ System Status</h3>
-                        <div class="status-indicator online">Online</div>
-                    </div>
-                    <div class="card-content">
-                        <div class="system-metrics">
-                            <div class="metric-item">
-                                <span class="metric-label">Server Uptime</span>
-                                <span class="metric-value">99.9%</span>
-                            </div>
-                            <div class="metric-item">
-                                <span class="metric-label">Active Users</span>
-                                <span class="metric-value" id="activeUsers">0</span>
-                            </div>
-                            <div class="metric-item">
-                                <span class="metric-label">Database Status</span>
-                                <span class="metric-value online">Healthy</span>
-                            </div>
-                            <div class="metric-item">
-                                <span class="metric-label">Last Backup</span>
-                                <span class="metric-value">2 hours ago</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-
+                
                 <div class="dashboard-card glass-card">
                     <div class="card-header">
                         <h3>⚡ Quick Actions</h3>
