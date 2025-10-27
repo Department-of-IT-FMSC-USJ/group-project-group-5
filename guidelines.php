@@ -17,7 +17,7 @@ session_start();
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
-    
+    //test
     <header class="header">
         <div class="container">
             <div class="header-content">
@@ -37,6 +37,7 @@ session_start();
                     <a href="../login.php" class="btn btn-primary">Sign In</a>
                 </div>
             </div>
+            //test 
         </div>
     </header>
 
@@ -111,7 +112,7 @@ session_start();
                                 <iframe 
                                     width="100%" 
                                     height="500" 
-                                    src="YOUR_SINHALA_VIDEO_URL_HERE" 
+                                    src="https://www.youtube.com/embed/BvmAk6c6zXw" 
                                     title="Sinhala License Application Guide"
                                     frameborder="0" 
                                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
@@ -130,7 +131,7 @@ session_start();
                                 <iframe 
                                     width="100%" 
                                     height="500" 
-                                    src="YOUR_TAMIL_VIDEO_URL_HERE" 
+                                    src="https://www.youtube.com/embed/w_O6eMpWMcY"  
                                     title="Tamil License Application Guide"
                                     frameborder="0" 
                                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
@@ -149,7 +150,7 @@ session_start();
                                 <iframe 
                                     width="100%" 
                                     height="500" 
-                                    src="YOUR_ENGLISH_VIDEO_URL_HERE" 
+                                    src="https://www.youtube.com/embed/yhksFAe4uk4"
                                     title="English License Application Guide"
                                     frameborder="0" 
                                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
@@ -378,7 +379,7 @@ session_start();
                     </div>
                 </div>
             </section>
-
+//test
         
             <section id="theory" class="guideline-section">
                 <div class="section-header">
