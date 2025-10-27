@@ -77,7 +77,7 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
                 </div>
             </div>
 
-           
+            
             <div class="status-details">
                 <div class="status-card glass-card">
                     <div class="status-icon">📅</div>
@@ -174,7 +174,7 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             
-
+           
             LicenseXpress.initializeUserData();
 
        
@@ -186,7 +186,7 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
                 return;
             }
 
-            /
+           
             fetch(`get_application_status.php?nic=${encodeURIComponent(currentUser.nic)}`)
                 .then(response => response.json())
                 .then(data => {
@@ -254,7 +254,7 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
                         console.log('Dashboard - Application State:', applicationState);
                         console.log('Dashboard - Status:', applicationState.status);
 
-                       
+                        
                         updateUserInfo(currentUser, applicationState);
 
                       
@@ -315,16 +315,18 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
            
             updateBreadcrumb(status);
 
-            
+          
             updateStatusDetails(applicationState, userProfile, tests, license);
 
-           
             updateTimeline(status, applicationState, tests, license);
 
            
             updateActionButton(status, applicationState, tests, license);
 
             
+            updateDynamicContent(status, applicationState, userProfile, tests, license);
+
+        
             if (status === 'license_issued') {
                 setTimeout(() => {
                     LicenseXpress.createConfetti();
@@ -334,7 +336,6 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
 
         function updateStatusBadge(status) {
             const statusBadge = document.getElementById('statusBadge');
-            
             
             if (!statusBadge) {
                 console.log('Status badge element not found - skipping update');
@@ -613,27 +614,14 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
                     break;
 
                 case 'view-practical-details':
-                    LicenseXpress.showModal('Practical Test Details', `
-                        <div class="test-details">
-                            <h4>Practical Test Information</h4>
-                            <p><strong>Date:</strong> ${LicenseXpress.formatDate(tests.practical.date)}</p>
-                            <p><strong>Time:</strong> ${tests.practical.time}</p>
-                            <p><strong>Center:</strong> ${tests.practical.center}</p>
-                            <p><strong>Address:</strong> ${tests.practical.address}</p>
-                            <p><strong>Vehicle:</strong> ${tests.practical.vehicle}</p>
-                            <p><strong>Examiner:</strong> ${tests.practical.examiner}</p>
-                        </div>
-                    `, [
-                        { text: 'Close', action: 'close' }
-                    ]);
+                    window.location.href = 'schedule-practical.php';
                     break;
 
                 case 'download-license':
-                    
+                   
                     const currentUser = LicenseXpress.getCurrentUser();
                     
-                    
-                    const licenseData = {
+                  const licenseData = {
                         number: license?.license_number || 'DL-2025-001234',
                         name: currentUser?.full_name || 'Not specified',
                         nic: currentUser?.nic || 'Not specified',
@@ -642,7 +630,7 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
                         expiryDate: license?.expiry_date || new Date(Date.now() + 5 * 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
                     };
                     
-                   
+                  
                     const htmlContent = `
                         <!DOCTYPE html>
                         <html>
@@ -816,7 +804,7 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
                         </html>
                     `;
                     
-                   
+                    
                     const printWindow = window.open('', '_blank', 'width=800,height=600');
                     printWindow.document.write(htmlContent);
                     printWindow.document.close();
@@ -830,8 +818,66 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
                         }, 1000);
                     };
                     
-                    
+                
                     LicenseXpress.showToast('Opening license for download/print...', 'success');
+                    break;
+
+                case 'download-study-guide':
+                    LicenseXpress.showModal('Practical Test Study Guide', `
+                        <div class="study-guide-content">
+                            <h4>📚 Practical Test Preparation Guide</h4>
+                            <div class="guide-section">
+                                <h5>🚗 Vehicle Preparation</h5>
+                                <ul>
+                                    <li>Ensure your vehicle is roadworthy and properly insured</li>
+                                    <li>Check all lights, indicators, and mirrors</li>
+                                    <li>Verify brakes, steering, and tires are in good condition</li>
+                                    <li>Clean the interior and ensure all controls work properly</li>
+                                </ul>
+                            </div>
+                            
+                            <div class="guide-section">
+                                <h5>📋 Required Documents</h5>
+                                <ul>
+                                    <li>Valid theory test pass certificate</li>
+                                    <li>National Identity Card (NIC)</li>
+                                    <li>Vehicle registration certificate</li>
+                                    <li>Valid insurance certificate</li>
+                                    <li>Valid revenue license</li>
+                                </ul>
+                            </div>
+                            
+                            <div class="guide-section">
+                                <h5>🎯 Test Areas Covered</h5>
+                                <ul>
+                                    <li>Vehicle controls and safety checks</li>
+                                    <li>Starting and stopping procedures</li>
+                                    <li>Turning and lane changing</li>
+                                    <li>Parking (parallel and reverse)</li>
+                                    <li>Traffic rules and road signs</li>
+                                    <li>Emergency procedures</li>
+                                </ul>
+                            </div>
+                            
+                            <div class="guide-section">
+                                <h5>💡 Tips for Success</h5>
+                                <ul>
+                                    <li>Practice regularly with a qualified instructor</li>
+                                    <li>Familiarize yourself with the test route area</li>
+                                    <li>Stay calm and follow examiner instructions</li>
+                                    <li>Use mirrors frequently and signal properly</li>
+                                    <li>Maintain appropriate speed and safe following distance</li>
+                                </ul>
+                            </div>
+                            
+                            <div class="important-notice">
+                                <p><strong>Remember:</strong> The practical test focuses on safe driving practices and adherence to traffic rules. Confidence and preparation are key to success!</p>
+                            </div>
+                        </div>
+                    `, [
+                        { text: 'Download PDF', action: 'download-pdf' },
+                        { text: 'Close', action: 'close' }
+                    ]);
                     break;
             }
         }
@@ -1605,7 +1651,7 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
                         </div>
                         
                         <div class="action-buttons">
-                            <button class="btn btn-primary" onclick="LicenseXpress.handleAction('view-practical-details')">
+                            <button class="btn btn-primary" onclick="handleAction('view-practical-details')">
                                 <span class="btn-icon">👁️</span>
                                 View Practical Details
                             </button>
@@ -1693,7 +1739,7 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
             `;
         }
 
-        function generateLicenseIssuedContent(license) {
+        function generateLicenseIssuedContent(license, userProfile) {
             
             const formatDate = (dateString) => {
                 if (!dateString) return 'Not specified';
@@ -1710,8 +1756,9 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
                 }
             };
 
-            
-            const currentUser = LicenseXpress.getCurrentUser();
+           
+            const issueDate = license?.issue_date || new Date().toISOString().split('T')[0];
+            const expiryDate = license?.expiry_date || new Date(Date.now() + 5 * 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
             
             return `
                 <div class="glass-card">
@@ -1730,34 +1777,24 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
                         </div>
                         <div class="info-row">
                             <span class="label">Full Name:</span>
-                            <span class="value">${currentUser?.full_name || 'Not specified'}</span>
+                            <span class="value">${userProfile?.fullName || 'License Holder'}</span>
                         </div>
                         <div class="info-row">
                             <span class="label">NIC Number:</span>
-                            <span class="value">${currentUser?.nic || 'Not specified'}</span>
+                            <span class="value">${userProfile?.nic || 'Not available'}</span>
                         </div>
                         <div class="info-row">
                             <span class="label">Vehicle Category:</span>
-                            <span class="value">${currentUser?.transmission_type || 'B'} - Light Motor Vehicle</span>
+                            <span class="value">${userProfile?.transmissionType || 'B'} - Light Motor Vehicle</span>
                         </div>
                         <div class="info-row">
                             <span class="label">Issue Date:</span>
-                            <span class="value">${formatDate(license?.issue_date)}</span>
-                        </div>
-                        <div class="info-row">
-                            <span class="label">Expiry Date:</span>
-                            <span class="value">${formatDate(license?.expiry_date)}</span>
+                            <span class="value">${formatDate(issueDate)}</span>
                         </div>
                         <div class="info-row">
                             <span class="label">Expiry Date:</span>
                             <span class="value">${formatDate(expiryDate)}</span>
                         </div>
-                    </div>
-                    
-                    <div class="success-message">
-                        <div class="success-icon">🚗</div>
-                        <p><strong>Welcome to the road! Drive safely and responsibly.</strong></p>
-                        <p class="reminder">Remember to always carry your physical license when driving.</p>
                     </div>
                     
                     <div class="success-message">
@@ -1771,7 +1808,7 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
     </script>
 
     <style>
-        
+       
         .congratulations-header {
             text-align: center;
             margin-bottom: 30px;
@@ -1937,7 +1974,7 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
             transform: scale(1.05);
         }
 
-        /* Ensure buttons are clickable */
+        
         .btn, .logout-btn {
             pointer-events: auto;
             cursor: pointer;
@@ -1949,7 +1986,7 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
             opacity: 0.6;
         }
 
-       
+        /* Timeline Styles */
         .timeline-section {
             margin: 40px 0;
         }
