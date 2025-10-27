@@ -287,7 +287,7 @@ function selectAnswer(optionIndex) {
         el.classList.toggle('selected', idx === optionIndex);
     });
 
-    t
+    
     updateQuestionNavigator(); 
     updateProgress();
     updateNavigationButton();
