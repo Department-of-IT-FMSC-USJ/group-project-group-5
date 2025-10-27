@@ -580,11 +580,11 @@ async function submitPracticalExamResult() {
             })
         });
         
-        const result = await response.json();
-        console.log('Practical result response:', result);
+        const responseData = await response.json();
+        console.log('Practical result response:', responseData);
         
-        if (result.success) {
-            const statusMessage = result.data.result === 'passed' 
+        if (responseData.success) {
+            const statusMessage = responseData.data.result === 'passed' 
                 ? 'Practical exam PASSED! License issued successfully 🎉'
                 : 'Practical exam FAILED. Candidate can retake the test.';
             
@@ -594,7 +594,7 @@ async function submitPracticalExamResult() {
             
             await loadAllSections();
         } else {
-            throw new Error(result.message);
+            throw new Error(responseData.message);
         }
     } catch (error) {
         console.error('Error submitting practical result:', error);
