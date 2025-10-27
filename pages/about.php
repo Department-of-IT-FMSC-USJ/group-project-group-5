@@ -14,7 +14,7 @@ session_start();
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
-    <!-- Header -->
+    
     <header class="header">
         <div class="container">
             <div class="header-content">
@@ -37,16 +37,16 @@ session_start();
         </div>
     </header>
 
-    <!-- Main Content -->
+    
     <main class="about-main">
         <div class="container">
-            <!-- Hero Section -->
+            
             <div class="hero-section">
                 <h1 class="hero-title">About LicenseXpress</h1>
                 <p class="hero-subtitle">Revolutionizing the driving license application process in Sri Lanka</p>
             </div>
 
-            <!-- Mission Section -->
+            
             <div class="mission-section glass-card">
                 <div class="mission-content">
                     <div class="mission-icon">🎯</div>
@@ -57,7 +57,7 @@ session_start();
                 </div>
             </div>
 
-            <!-- Vision Section -->
+            
             <div class="vision-section glass-card">
                 <div class="vision-content">
                     <div class="vision-icon">👁️</div>
@@ -68,7 +68,7 @@ session_start();
                 </div>
             </div>
 
-            <!-- Story Section -->
+            
             <div class="story-section">
                 <h2 class="section-title">Our Story</h2>
                 <div class="story-content glass-card">
@@ -80,7 +80,7 @@ session_start();
                 </div>
             </div>
 
-            <!-- Values Section -->
+            
             <div class="values-section">
                 <h2 class="section-title">Our Values</h2>
                 <div class="values-grid">
@@ -107,7 +107,7 @@ session_start();
                 </div>
             </div>
 
-            <!-- Team Section -->
+            
             <div class="team-section">
                 <h2 class="section-title">Our Team</h2>
                 <div class="team-grid">
@@ -138,7 +138,7 @@ session_start();
                 </div>
             </div>
 
-            <!-- Stats Section -->
+            
             <div class="stats-section">
                 <h2 class="section-title">Our Impact</h2>
                 <div class="stats-grid">
@@ -161,7 +161,7 @@ session_start();
                 </div>
             </div>
 
-            <!-- Contact CTA -->
+            
             <div class="contact-cta glass-card">
                 <div class="cta-content">
                     <h2>Ready to Get Started?</h2>
@@ -175,7 +175,7 @@ session_start();
         </div>
     </main>
 
-    <!-- Footer -->
+    
     <footer class="footer">
         <div class="container">
             <div class="footer-content">
