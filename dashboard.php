@@ -20,6 +20,7 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - LicenseXpress</title>
     <link rel="stylesheet" href="assets/css/styles.css">
+    <link rel="stylesheet" href="assets/css/dashboard.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -176,6 +177,36 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
             
            
             LicenseXpress.initializeUserData();
+            
+            // Check for recent exam results and update status
+            const lastExamResult = JSON.parse(localStorage.getItem('lastExamResult') || 'null');
+            if (lastExamResult && lastExamResult.timestamp) {
+                const examTime = new Date(lastExamResult.timestamp);
+                const now = new Date();
+                const timeDiff = now - examTime;
+                
+                // If exam was completed within the last 5 minutes, update status
+                if (timeDiff < 5 * 60 * 1000) {
+                    console.log('Recent exam completed, updating status...');
+                    if (lastExamResult.passed) {
+                        // Update to theory_passed status
+                        LicenseXpress.showToast('🎉 Congratulations! You passed your theory test!', 'success');
+                        // Refresh the page to show updated status
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 2000);
+                    } else {
+                        // Update to theory_failed status
+                        LicenseXpress.showToast(`Theory test completed. Score: ${lastExamResult.score}/${lastExamResult.total}`, 'info');
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 2000);
+                    }
+                    
+                    // Clear the exam result from localStorage
+                    localStorage.removeItem('lastExamResult');
+                }
+            }
 
        
             const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
@@ -485,9 +516,9 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
                 { id: 'not_started', icon: '📋', label: 'Not Started', date: null, color: 'gray' },
                 { id: 'pending_verification', icon: '⏳', label: 'Pending Verification', date: applicationState.submittedDate, color: 'orange' },
                 { id: 'verified', icon: '✅', label: 'Verified', date: applicationState.verifiedDate, color: 'green' },
-                { id: 'theory_scheduled', icon: '📝', label: 'Theory Test Scheduled', date: tests.theory?.date, color: 'blue' },
-                { id: 'theory_passed', icon: '🎓', label: 'Theory Passed', date: tests.theory?.passedDate, color: 'green' },
-                { id: 'practical_scheduled', icon: '🚗', label: 'Practical Scheduled', date: tests.practical?.date, color: 'blue' },
+                { id: 'theory_scheduled', icon: '📝', label: 'Theory Test Scheduled', date: tests.theory?.scheduled_date || tests.theory?.test_date, color: 'blue' },
+                { id: 'theory_passed', icon: '🎓', label: 'Theory Passed', date: tests.theory?.passed_date || tests.theory?.test_date, color: 'green' },
+                { id: 'practical_scheduled', icon: '🚗', label: 'Practical Scheduled', date: tests.practical?.scheduled_date, color: 'blue' },
                 { id: 'license_issued', icon: '🏆', label: 'License Issued', date: license?.issue_date, color: 'gold' }
             ];
 
@@ -558,7 +589,6 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
 
             const buttonConfigs = {
                 'not_started': { text: 'Start Application', icon: '→', action: 'application-form.php' },
-                'pending_verification': { text: 'View Application', icon: '👁️', action: 'view-application' },
                 'rejected': { text: 'Resubmit Documents', icon: '📝', action: 'application-form.php' },
                 'verified': { text: 'Schedule Theory Test', icon: '📅', action: 'schedule-theory.php' },
                 'theory_scheduled': { text: 'Take Theory Exam', icon: '📝', action: 'exam-window.php' },
@@ -567,6 +597,12 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
                 'practical_scheduled': { text: 'View Test Details', icon: '👁️', action: 'view-practical-details' },
                 'license_issued': { text: 'Download License', icon: '⬇️', action: 'download-license' }
             };
+
+            // Hide action button for pending_verification status
+            if (status === 'pending_verification') {
+                actionButton.style.display = 'none';
+                return;
+            }
 
             const config = buttonConfigs[status] || buttonConfigs['not_started'];
             btnText.textContent = config.text;
@@ -581,20 +617,112 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
             };
         }
 
+        async function fetchApplicationDetails() {
+            try {
+                // Get current user's NIC from localstorage
+                const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+                const nic = currentUser.nic;
+                
+                if (!nic) {
+                    throw new Error('User NIC not found. Please login again.');
+                }
+                
+                // Show loading state in the details container
+                const detailsContainer = document.getElementById('application-details-container');
+                if (detailsContainer) {
+                    detailsContainer.innerHTML = `
+                        <div class="application-details-loading">
+                            <div class="loading-spinner"></div>
+                            <p>Loading application details...</p>
+                        </div>
+                    `;
+                    detailsContainer.style.display = 'block';
+                }
+                
+                // Fetch application data from the API with NIC parameter
+                console.log('Fetching application details for NIC:', nic);
+                const response = await fetch(`get_application_status.php?nic=${encodeURIComponent(nic)}`);
+                console.log('API response status:', response.status);
+                const data = await response.json();
+                console.log('API response data:', data);
+                
+                if (data.success) {
+                    const application = data.application;
+                    const user = data.user;
+                    const payment = data.payment;
+                    
+                    // Format the application details - Only essential information
+                    const applicationDetails = `
+                        <div class="application-details">
+                            <div class="details-header">
+                                <h4>📋 Application Information</h4>
+                                <div class="status-badge pending">Under Review</div>
+                            </div>
+                            
+                            <div class="details-grid">
+                                <div class="detail-item">
+                                    <div class="detail-icon">🆔</div>
+                                    <div class="detail-content">
+                                        <h5>Application ID</h5>
+                                        <p>${application.application_id || 'LX-2025-001234'}</p>
+                                    </div>
+                                </div>
+                                
+                                <div class="detail-item">
+                                    <div class="detail-icon">📅</div>
+                                    <div class="detail-content">
+                                        <h5>Date Submitted</h5>
+                                        <p>${LicenseXpress.formatDateTime(application.submitted_date || application.created_at)}</p>
+                                    </div>
+                                </div>
+                                
+                                <div class="detail-item">
+                                    <div class="detail-icon">📊</div>
+                                    <div class="detail-content">
+                                        <h5>Progress</h5>
+                                        <p>${application.progress || 14}% Complete</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="details-footer">
+                                <p>📧 You will be notified via email and SMS when verification is complete.</p>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Update the details container with real data
+                    if (detailsContainer) {
+                        detailsContainer.innerHTML = applicationDetails;
+                    }
+                    
+                } else {
+                    throw new Error(data.error || 'Failed to fetch application details');
+                }
+                
+            } catch (error) {
+                console.error('Error fetching application details:', error);
+                const detailsContainer = document.getElementById('application-details-container');
+                if (detailsContainer) {
+                    detailsContainer.innerHTML = `
+                        <div class="application-details-error">
+                            <div class="error-icon">❌</div>
+                            <h4>Error Loading Details</h4>
+                            <p>Unable to load application details. Please try again later.</p>
+                            <p><small>Error: ${error.message}</small></p>
+                        </div>
+                    `;
+                }
+            }
+        }
+
         function handleAction(action, applicationState, tests, license) {
+            console.log('handleAction called with:', action);
             switch (action) {
                 case 'view-application':
-                    LicenseXpress.showModal('Application Details', `
-                        <div class="application-details">
-                            <h4>Application Information</h4>
-                            <p><strong>Application ID:</strong> ${applicationState.applicationId || 'LX-2025-001234'}</p>
-                            <p><strong>Submitted:</strong> ${LicenseXpress.formatDateTime(applicationState.submittedDate)}</p>
-                            <p><strong>Status:</strong> Under Review</p>
-                            <p><strong>Payment:</strong> Rs. ${applicationState.payment?.amount || 3200} (Completed)</p>
-                        </div>
-                    `, [
-                        { text: 'Close', action: 'close' }
-                    ]);
+                    console.log('Calling fetchApplicationDetails...');
+                    // Fetch real application data from database
+                    fetchApplicationDetails();
                     break;
 
                 case 'view-theory-details':
@@ -939,38 +1067,297 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
 
         function generateNotStartedContent() {
             return `
-                <div class="info-card glass-card">
-                    <h3>📋 What you'll need:</h3>
-                    <ul>
-                        <li>Birth Certificate (digital copy)</li>
-                        <li>NIC Copy (front and back)</li>
-                        <li>Medical Certificate (< 6 months old)</li>
-                        <li>Passport photo (white background)</li>
-                        <li>Payment method (Rs. 3,200)</li>
-                    </ul>
+                <div class="welcome-section glass-card">
+                    <div class="welcome-header">
+                        <div class="welcome-icon">🚗</div>
+                        <div class="welcome-content">
+                            <h2>Welcome to LicenseXpress!</h2>
+                            <p>Get your Sri Lankan driving license in just a few simple steps. Let's get started!</p>
+                        </div>
+                    </div>
+                    
+                    <div class="requirements-section">
+                        <h3>📋 What You'll Need to Get Started</h3>
+                        <div class="requirements-grid">
+                            <div class="requirement-item">
+                                <div class="req-icon">📄</div>
+                                <div class="req-content">
+                                    <h4>Birth Certificate</h4>
+                                    <p>Digital copy (PDF or clear photo)</p>
+                                    <span class="req-note">Must be official government document</span>
+                                </div>
+                            </div>
+                            
+                            <div class="requirement-item">
+                                <div class="req-icon">🆔</div>
+                                <div class="req-content">
+                                    <h4>NIC Copy</h4>
+                                    <p>Front and back sides</p>
+                                    <span class="req-note">Clear, readable images</span>
+                                </div>
+                            </div>
+                            
+                            <div class="requirement-item">
+                                <div class="req-icon">🏥</div>
+                                <div class="req-content">
+                                    <h4>Medical Certificate</h4>
+                                    <p>Less than 6 months old</p>
+                                    <span class="req-note">From registered medical practitioner</span>
+                                </div>
+                            </div>
+                            
+                            <div class="requirement-item">
+                                <div class="req-icon">📸</div>
+                                <div class="req-content">
+                                    <h4>Passport Photo</h4>
+                                    <p>White background</p>
+                                    <span class="req-note">Professional quality, recent photo</span>
+                                </div>
+                            </div>
+                            
+                            <div class="requirement-item">
+                                <div class="req-icon">💳</div>
+                                <div class="req-content">
+                                    <h4>Payment</h4>
+                                    <p>Rs. 3,200</p>
+                                    <span class="req-note">Credit/Debit card or bank transfer</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="process-info">
+                        <h3>⚡ Quick Process Overview</h3>
+                        <div class="process-steps">
+                            <div class="process-step">
+                                <div class="step-number">1</div>
+                                <div class="step-content">
+                                    <h4>Submit Application</h4>
+                                    <p>Upload documents and pay fees</p>
+                                </div>
+                            </div>
+                            <div class="step-arrow">→</div>
+                            <div class="process-step">
+                                <div class="step-number">2</div>
+                                <div class="step-content">
+                                    <h4>Verification</h4>
+                                    <p>Documents reviewed (24-48 hours)</p>
+                                </div>
+                            </div>
+                            <div class="step-arrow">→</div>
+                            <div class="process-step">
+                                <div class="step-number">3</div>
+                                <div class="step-content">
+                                    <h4>Theory Test</h4>
+                                    <p>Online exam (50 questions)</p>
+                                </div>
+                            </div>
+                            <div class="step-arrow">→</div>
+                            <div class="process-step">
+                                <div class="step-number">4</div>
+                                <div class="step-content">
+                                    <h4>Practical Test</h4>
+                                    <p>Driving test at approved center</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="help-section">
+                        <h3>❓ Need Help?</h3>
+                        <div class="help-options">
+                            <div class="help-item">
+                                <div class="help-icon">📞</div>
+                                <div class="help-content">
+                                    <h4>Call Us</h4>
+                                    <p>+94 11 234 5678</p>
+                                </div>
+                            </div>
+                            <div class="help-item">
+                                <div class="help-icon">📧</div>
+                                <div class="help-content">
+                                    <h4>Email Support</h4>
+                                    <p>support@licensexpress.lk</p>
+                                </div>
+                            </div>
+                            <div class="help-item">
+                                <div class="help-icon">💬</div>
+                                <div class="help-content">
+                                    <h4>Live Chat</h4>
+                                    <p>Available 9 AM - 6 PM</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             `;
         }
 
         function generatePendingVerificationContent() {
             return `
-                <div class="info-card glass-card">
-                    <h3>📧 Verification Status Updates</h3>
-                    <p>You'll be notified via email and SMS when:</p>
-                    <ul>
-                        <li>Verification is in progress</li>
-                        <li>Documents are approved</li>
-                        <li>Any corrections are needed</li>
-                    </ul>
-                    <p>Check your email regularly for updates.</p>
+                <div class="verification-status-card glass-card">
+                    <div class="status-header">
+                        <div class="status-icon">⏳</div>
+                        <div class="status-content">
+                            <h3>Application Under Review</h3>
+                            <p>Your application is currently being verified by our team. This process typically takes up to 48 hours.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="quick-actions">
+                        <button class="btn btn-primary btn-large" onclick="handleAction('view-application')">
+                            <span class="btn-icon">👁️</span>
+                            View Application Details
+                        </button>
+                    </div>
                 </div>
+                
+                <!-- Application Details Container -->
+                <div id="application-details-container" class="application-details-container" style="display: none;">
+                    <!-- Details will be loaded here -->
+                </div>
+                
+                <div class="verification-progress-section glass-card">
+                    <div class="progress-header">
+                        <h3>📊 Verification Progress</h3>
+                        <div class="progress-status">In Progress</div>
+                    </div>
+                    
+                    <div class="progress-timeline">
+                        <div class="timeline-item completed">
+                            <div class="timeline-marker">✓</div>
+                            <div class="timeline-content">
+                                <h4>Application Submitted</h4>
+                                <p>Your application has been successfully submitted</p>
+                                <span class="timeline-time">Just now</span>
+                            </div>
+                        </div>
+                        
+                        <div class="timeline-item active">
+                            <div class="timeline-marker">⏳</div>
+                            <div class="timeline-content">
+                                <h4>Document Review</h4>
+                                <p>Our team is reviewing your submitted documents</p>
+                                <span class="timeline-time">In progress</span>
+                            </div>
+                        </div>
+                        
+                        <div class="timeline-item pending">
+                            <div class="timeline-marker">📋</div>
+                            <div class="timeline-content">
+                                <h4>Verification Complete</h4>
+                                <p>Documents will be approved and you'll be notified</p>
+                                <span class="timeline-time">Expected: 24-48 hours</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="verification-info-grid">
+                    <div class="info-card glass-card">
+                        <div class="info-icon">📧</div>
+                        <div class="info-content">
+                            <h4>Email Notifications</h4>
+                            <p>You'll receive email updates when:</p>
+                            <ul>
+                                <li>Verification starts</li>
+                                <li>Documents are approved</li>
+                                <li>Any issues are found</li>
+                                <li>Verification is complete</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="info-card glass-card">
+                        <div class="info-icon">📱</div>
+                        <div class="info-content">
+                            <h4>SMS Updates</h4>
+                            <p>Important updates will also be sent via SMS to your registered phone number.</p>
+                            <div class="contact-info">
+                                <strong>Phone:</strong> +94 77 123 4567
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="info-card glass-card">
+                        <div class="info-icon">⏰</div>
+                        <div class="info-content">
+                            <h4>Processing Time</h4>
+                            <p>Typical verification timeline:</p>
+                            <ul>
+                                <li>Initial review: 2-4 hours</li>
+                                <li>Document verification: 12-24 hours</li>
+                                <li>Final approval: 24-48 hours</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="info-card glass-card">
+                        <div class="info-icon">🆘</div>
+                        <div class="info-content">
+                            <h4>Need Help?</h4>
+                            <p>If you have questions or concerns:</p>
+                            <div class="help-contacts">
+                                <div class="contact-item">
+                                    <strong>📞 Call:</strong> +94 11 234 5678
+                                </div>
+                                <div class="contact-item">
+                                    <strong>📧 Email:</strong> support@licensexpress.lk
+                                </div>
+                                <div class="contact-item">
+                                    <strong>💬 Live Chat:</strong> Available 9 AM - 6 PM
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
                 <div class="verification-checklist glass-card">
-                    <h3>📋 Verification Checklist</h3>
+                    <div class="checklist-header">
+                        <h3>📋 Document Verification Status</h3>
+                        <div class="checklist-summary">4 documents under review</div>
+                    </div>
+                    
                     <div class="checklist-items">
-                        <div class="checklist-item">☑ Birth Certificate - Under Review</div>
-                        <div class="checklist-item">☑ NIC Copy - Under Review</div>
-                        <div class="checklist-item">☑ Medical Certificate - Under Review</div>
-                        <div class="checklist-item">☑ Passport Photo - Under Review</div>
+                        <div class="checklist-item">
+                            <div class="item-icon">📄</div>
+                            <div class="item-content">
+                                <h4>Birth Certificate</h4>
+                                <p>Under Review</p>
+                                <div class="status-indicator pending"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="checklist-item">
+                            <div class="item-icon">🆔</div>
+                            <div class="item-content">
+                                <h4>NIC Copy</h4>
+                                <p>Under Review</p>
+                                <div class="status-indicator pending"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="checklist-item">
+                            <div class="item-icon">🏥</div>
+                            <div class="item-content">
+                                <h4>Medical Certificate</h4>
+                                <p>Under Review</p>
+                                <div class="status-indicator pending"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="checklist-item">
+                            <div class="item-icon">📸</div>
+                            <div class="item-content">
+                                <h4>Passport Photo</h4>
+                                <p>Under Review</p>
+                                <div class="status-indicator pending"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="checklist-footer">
+                        <p>All documents are being reviewed by our verification team. You'll be notified of any issues or when verification is complete.</p>
                     </div>
                 </div>
             `;
@@ -1807,1167 +2194,5 @@ error_log("Dashboard - User logged in: " . $_SESSION['user_id']);
         }
     </script>
 
-    <style>
-       
-        .congratulations-header {
-            text-align: center;
-            margin-bottom: 30px;
-            padding: 20px;
-            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(34, 197, 94, 0.1));
-            border-radius: 15px;
-            border: 2px solid rgba(16, 185, 129, 0.3);
-        }
-        
-        .celebration-icon {
-            font-size: 48px;
-            margin-bottom: 15px;
-            animation: bounce 2s infinite;
-        }
-        
-        .congratulations-header h2 {
-            color: #10B981;
-            font-size: 32px;
-            font-weight: 700;
-            margin: 0 0 10px 0;
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-        
-        .congratulations-header h3 {
-            color: #FFFFFF;
-            font-size: 20px;
-            font-weight: 600;
-            margin: 0 0 8px 0;
-        }
-        
-        .congratulations-header .subtitle {
-            color: #94B8C4;
-            font-size: 16px;
-            margin: 0;
-            font-style: italic;
-        }
-        
-        .license-info h4 {
-            color: #0A9396;
-            font-size: 18px;
-            font-weight: 600;
-            margin: 0 0 20px 0;
-            padding-bottom: 10px;
-            border-bottom: 2px solid rgba(10, 147, 150, 0.3);
-        }
-        
-        .info-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 12px 0;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        
-        .info-row:last-child {
-            border-bottom: none;
-        }
-        
-        .info-row .label {
-            color: #94B8C4;
-            font-weight: 600;
-            font-size: 14px;
-        }
-        
-        .info-row .value {
-            color: #FFFFFF;
-            font-weight: 500;
-            font-size: 16px;
-        }
-        
-        .info-row .value.highlight {
-            color: #10B981;
-            font-weight: 700;
-            font-size: 18px;
-        }
-        
-        .success-message {
-            text-align: center;
-            margin-top: 30px;
-            padding: 20px;
-            background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(251, 191, 36, 0.1));
-            border-radius: 15px;
-            border: 2px solid rgba(245, 158, 11, 0.3);
-        }
-        
-        .success-icon {
-            font-size: 32px;
-            margin-bottom: 15px;
-        }
-        
-        .success-message p {
-            color: #FFFFFF;
-            margin: 8px 0;
-            font-size: 16px;
-        }
-        
-        .success-message p strong {
-            color: #F59E0B;
-            font-size: 18px;
-        }
-        
-        .success-message .reminder {
-            color: #94B8C4;
-            font-size: 14px;
-            font-style: italic;
-        }
-        
-        @keyframes bounce {
-            0%, 20%, 50%, 80%, 100% {
-                transform: translateY(0);
-            }
-            40% {
-                transform: translateY(-10px);
-            }
-            60% {
-                transform: translateY(-5px);
-            }
-        }
-        
-        .header {
-            display: block;
-        }
-
-        .header-actions {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .user-avatar {
-            width: 40px;
-            height: 40px;
-            background: var(--gradient-1);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 16px;
-            font-weight: 700;
-            color: white;
-            flex-shrink: 0;
-        }
-
-        .logout-btn {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: var(--surface);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: var(--text-muted);
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-            font-size: 16px;
-        }
-
-        .logout-btn:hover {
-            background: var(--surface-hover);
-            color: var(--text);
-            transform: scale(1.05);
-        }
-
-        
-        .btn, .logout-btn {
-            pointer-events: auto;
-            cursor: pointer;
-            user-select: none;
-        }
-
-        .btn:disabled {
-            pointer-events: none;
-            opacity: 0.6;
-        }
-
-        /* Timeline Styles */
-        .timeline-section {
-            margin: 40px 0;
-        }
-
-        .section-title {
-            font-size: 24px;
-            font-weight: 700;
-            color: var(--text);
-            margin-bottom: 24px;
-            text-align: center;
-        }
-
-        .timeline {
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-            position: relative;
-            padding-left: 24px;
-        }
-
-        .timeline-step {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            position: relative;
-            padding: 16px 0;
-        }
-
-        .timeline-icon {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 18px;
-            flex-shrink: 0;
-            background: var(--surface);
-            border: 2px solid rgba(255, 255, 255, 0.1);
-            transition: all 0.3s ease;
-        }
-
-        .timeline-step.active .timeline-icon {
-            background: var(--gradient-1);
-            border-color: var(--primary-light);
-            box-shadow: 0 0 20px rgba(0, 95, 115, 0.3);
-        }
-
-        .timeline-step.completed .timeline-icon {
-            background: var(--success);
-            border-color: var(--success);
-        }
-
-        .timeline-step.rejected .timeline-icon {
-            background: var(--error);
-            border-color: var(--error);
-        }
-
-        .timeline-content {
-            flex: 1;
-        }
-
-        .timeline-label {
-            font-size: 16px;
-            font-weight: 600;
-            color: var(--text);
-            margin-bottom: 4px;
-        }
-
-        .timeline-date {
-            font-size: 14px;
-            color: var(--text-muted);
-        }
-
-        .timeline-connector {
-            position: absolute;
-            left: 39px;
-            top: 60px;
-            width: 2px;
-            height: 20px;
-            background: rgba(255, 255, 255, 0.1);
-        }
-
-        .timeline-step.completed + .timeline-step .timeline-connector {
-            background: var(--success);
-        }
-
-        .timeline-step.active + .timeline-step .timeline-connector {
-            background: var(--gradient-1);
-        }
-
-        .breadcrumb {
-            background: var(--bg-light);
-            padding: 16px 0;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .breadcrumb-item {
-            color: var(--text-muted);
-        }
-
-        .breadcrumb-separator {
-            color: var(--text-muted);
-            margin: 0 8px;
-        }
-
-        .breadcrumb-current {
-            color: var(--text);
-            font-weight: 600;
-        }
-
-        .dashboard-main {
-            padding: 40px 0;
-        }
-
-        .profile-card {
-            margin-bottom: 32px;
-            padding: 32px;
-        }
-
-        .profile-header {
-            display: flex;
-            align-items: center;
-            gap: 24px;
-            margin-bottom: 24px;
-        }
-
-        .profile-avatar {
-            flex-shrink: 0;
-        }
-
-        .avatar-circle {
-            width: 120px;
-            height: 120px;
-            border-radius: 50%;
-            background: var(--gradient-1);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 48px;
-            font-weight: 800;
-            color: white;
-            border: 4px solid var(--primary);
-        }
-
-        .profile-info {
-            flex: 1;
-        }
-
-        .profile-name {
-            font-size: 32px;
-            font-weight: 800;
-            margin-bottom: 8px;
-            color: var(--text);
-        }
-
-        .profile-nic {
-            font-size: 18px;
-            color: var(--text-muted);
-            margin-bottom: 24px;
-        }
-
-
-        .status-message {
-            background: var(--surface);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 12px;
-            padding: 20px;
-            color: var(--text-muted);
-            line-height: 1.6;
-        }
-
-        .status-details {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 24px;
-            margin-bottom: 40px;
-        }
-
-        .status-card {
-            padding: 24px;
-            display: flex;
-            align-items: center;
-            gap: 16px;
-        }
-
-        .status-icon {
-            font-size: 32px;
-            flex-shrink: 0;
-        }
-
-        .status-content {
-            flex: 1;
-        }
-
-        .status-label {
-            font-size: 14px;
-            color: var(--text-muted);
-            margin-bottom: 4px;
-        }
-
-        .status-value {
-            font-size: 18px;
-            font-weight: 600;
-            color: var(--text);
-        }
-
-        .timeline-section {
-            margin-bottom: 40px;
-        }
-
-        .section-title {
-            font-size: 24px;
-            font-weight: 700;
-            margin-bottom: 24px;
-            color: var(--text);
-        }
-
-        .timeline {
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            gap: 24px;
-        }
-
-        .timeline-step {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            position: relative;
-            opacity: 0.4;
-            transition: all 0.3s ease;
-        }
-
-        .timeline-step.completed {
-            opacity: 1;
-        }
-
-        .timeline-step.active {
-            opacity: 1;
-            transform: scale(1.02);
-        }
-
-        .timeline-step.rejected {
-            opacity: 1;
-        }
-
-        .timeline-icon {
-            width: 64px;
-            height: 64px;
-            border-radius: 50%;
-            background: var(--surface);
-            border: 2px solid rgba(255, 255, 255, 0.1);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-            flex-shrink: 0;
-            transition: all 0.3s ease;
-        }
-
-        .timeline-step.completed .timeline-icon {
-            background: var(--success);
-            border-color: var(--success);
-            color: white;
-        }
-
-        .timeline-step.active .timeline-icon {
-            background: var(--gradient-1);
-            border-color: var(--primary);
-            color: white;
-            animation: pulse 2s infinite;
-        }
-
-        .timeline-step.rejected .timeline-icon {
-            background: var(--error);
-            border-color: var(--error);
-            color: white;
-        }
-
-        .timeline-content {
-            flex: 1;
-        }
-
-        .timeline-label {
-            font-size: 18px;
-            font-weight: 600;
-            color: var(--text);
-            margin-bottom: 4px;
-        }
-
-        .timeline-date {
-            font-size: 14px;
-            color: var(--text-muted);
-        }
-
-        .timeline-connector {
-            position: absolute;
-            left: 32px;
-            top: 64px;
-            width: 2px;
-            height: 24px;
-            background: rgba(255, 255, 255, 0.1);
-        }
-
-        .timeline-step.completed + .timeline-step .timeline-connector {
-            background: var(--success);
-        }
-
-        .action-section {
-            text-align: center;
-            margin-bottom: 40px;
-        }
-
-        .btn-action {
-            padding: 20px 40px;
-            font-size: 20px;
-        }
-
-        .dynamic-content {
-            display: flex;
-            flex-direction: column;
-            gap: 24px;
-        }
-
-        .info-card,
-        .verification-checklist,
-        .rejection-alert,
-        .resubmission-guidelines,
-        .success-card,
-        .test-details-card,
-        .test-results-card,
-        .next-steps-card,
-        .practical-details-card,
-        .required-documents,
-        .license-preview,
-        .license-actions,
-        .achievement-summary {
-            padding: 24px;
-        }
-
-        .info-card h3,
-        .verification-checklist h3,
-        .rejection-alert h3,
-        .resubmission-guidelines h3,
-        .success-card h3,
-        .test-details-card h3,
-        .test-results-card h3,
-        .next-steps-card h3,
-        .practical-details-card h3,
-        .required-documents h3,
-        .license-preview h3,
-        .license-actions h3,
-        .achievement-summary h3 {
-            font-size: 20px;
-            font-weight: 700;
-            margin-bottom: 16px;
-            color: var(--text);
-        }
-
-        .checklist-items {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 12px;
-        }
-
-        .checklist-item {
-            padding: 12px;
-            background: var(--surface);
-            border-radius: 8px;
-            font-size: 14px;
-        }
-
-        .rejection-alert {
-            border-left: 4px solid var(--error);
-        }
-
-        .success-card {
-            border-left: 4px solid var(--success);
-        }
-
-        .license-card-preview {
-            background: var(--bg-light);
-            border: 2px solid var(--primary);
-            border-radius: 12px;
-            padding: 24px;
-            margin: 16px 0;
-        }
-
-        .license-header {
-            text-align: center;
-            font-weight: 800;
-            font-size: 18px;
-            margin-bottom: 20px;
-            color: var(--primary);
-        }
-
-        .license-content {
-            display: flex;
-            gap: 20px;
-        }
-
-        .license-photo {
-            width: 80px;
-            height: 100px;
-            background: var(--surface);
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 12px;
-            color: var(--text-muted);
-        }
-
-        .license-details {
-            flex: 1;
-        }
-
-        .license-details p {
-            margin-bottom: 8px;
-            font-size: 14px;
-        }
-
-        .action-buttons {
-            display: flex;
-            gap: 16px;
-            flex-wrap: wrap;
-        }
-
-        .summary-content p {
-            margin-bottom: 12px;
-        }
-
-        .milestones {
-            margin-top: 20px;
-        }
-
-        .milestones h4 {
-            font-size: 16px;
-            margin-bottom: 12px;
-            color: var(--text);
-        }
-
-        .milestones ul {
-            margin-bottom: 16px;
-        }
-
-        .milestones li {
-            margin-bottom: 8px;
-        }
-
-       
-        .test-results-card.success-card {
-            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(34, 197, 94, 0.05) 100%);
-            border: 1px solid rgba(16, 185, 129, 0.2);
-        }
-
-        .results-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 24px;
-            padding-bottom: 16px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .success-icon {
-            font-size: 32px;
-            margin-right: 12px;
-        }
-
-        .status-badge {
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 14px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .status-badge.passed {
-            background: rgba(16, 185, 129, 0.2);
-            color: #10B981;
-            border: 1px solid rgba(16, 185, 129, 0.3);
-        }
-
-        .results-summary {
-            display: flex;
-            flex-direction: column;
-            gap: 24px;
-            margin-bottom: 8px;
-        }
-
-        .score-display {
-            display: flex;
-            align-items: center;
-            gap: 24px;
-            justify-content: center;
-        }
-
-        .score-circle {
-            width: 120px;
-            height: 120px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-        }
-
-        .score-inner {
-            width: 100px;
-            height: 100px;
-            background: var(--bg-dark);
-            border-radius: 50%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .score-number {
-            font-size: 32px;
-            font-weight: 800;
-            color: var(--text);
-            line-height: 1;
-        }
-
-        .score-total {
-            font-size: 16px;
-            color: var(--text-muted);
-            font-weight: 600;
-        }
-
-        .score-details {
-            text-align: center;
-        }
-
-        .score-percentage {
-            font-size: 28px;
-            font-weight: 800;
-            color: var(--text);
-            margin-bottom: 4px;
-        }
-
-        .score-label {
-            font-size: 14px;
-            color: var(--text-muted);
-            font-weight: 600;
-        }
-
-        .results-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 16px;
-            margin-bottom: 16px;
-        }
-
-        .result-item {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 16px;
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            transition: all 0.3s ease;
-        }
-
-        .result-item:hover {
-            background: rgba(255, 255, 255, 0.08);
-            transform: translateY(-2px);
-        }
-
-        .result-icon {
-            font-size: 24px;
-            flex-shrink: 0;
-        }
-
-        .result-content {
-            flex: 1;
-        }
-
-        .result-label {
-            font-size: 12px;
-            color: var(--text-muted);
-            margin-bottom: 4px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .result-value {
-            font-size: 16px;
-            color: var(--text);
-            font-weight: 700;
-        }
-
-        .achievement-message {
-            text-align: center;
-            padding: 20px;
-            background: rgba(16, 185, 129, 0.1);
-            border-radius: 12px;
-            border: 1px solid rgba(16, 185, 129, 0.2);
-            margin-top: 32px;
-        }
-
-        .achievement-message p {
-            font-size: 16px;
-            color: var(--text);
-            margin: 0;
-            font-weight: 600;
-        }
-
-        
-        .user-info-section {
-            display: flex;
-            align-items: flex-start;
-            gap: 24px;
-            padding: 28px;
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            margin-bottom: 24px;
-            min-height: 140px;
-        }
-
-        .user-avatar-large {
-            flex-shrink: 0;
-        }
-
-        .avatar-circle-large {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            background: var(--gradient-1);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 32px;
-            font-weight: 800;
-            color: white;
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
-        }
-
-        .user-details {
-            flex: 1;
-            min-width: 0; 
-        }
-
-        .user-name {
-            font-size: 24px;
-            font-weight: 700;
-            color: var(--text);
-            margin-bottom: 8px;
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-            white-space: normal;
-            line-height: 1.2;
-            hyphens: none;
-            -webkit-hyphens: none;
-            -moz-hyphens: none;
-            max-width: 100%;
-        }
-
-        .user-nic {
-            font-size: 16px;
-            color: var(--text-muted);
-            margin-bottom: 4px;
-            font-weight: 600;
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-            white-space: normal;
-        }
-
-        .user-application-id {
-            font-size: 14px;
-            color: var(--text-muted);
-            margin: 0;
-            font-weight: 500;
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-            white-space: normal;
-        }
-
-       
-        .next-steps-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 24px;
-            padding-bottom: 16px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .next-icon {
-            font-size: 32px;
-            margin-right: 12px;
-        }
-
-        .progress-indicator {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .progress-step {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 14px;
-            font-weight: 700;
-            transition: all 0.3s ease;
-        }
-
-        .progress-step.completed {
-            background: #10B981;
-            color: white;
-        }
-
-        .progress-step.current {
-            background: #3B82F6;
-            color: white;
-            animation: pulse 2s infinite;
-        }
-
-        .progress-step:not(.completed):not(.current) {
-            background: rgba(255, 255, 255, 0.1);
-            color: var(--text-muted);
-        }
-
-        .progress-line {
-            width: 24px;
-            height: 2px;
-            background: rgba(255, 255, 255, 0.2);
-        }
-
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.1); }
-        }
-
-        .next-steps-content {
-            display: flex;
-            flex-direction: column;
-            gap: 24px;
-        }
-
-        .step-description {
-            text-align: center;
-        }
-
-        .step-description h4 {
-            font-size: 20px;
-            font-weight: 700;
-            color: var(--text);
-            margin-bottom: 8px;
-        }
-
-        .step-description p {
-            font-size: 16px;
-            color: var(--text-muted);
-            margin: 0;
-        }
-
-        .practical-info-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 16px;
-        }
-
-        .info-card {
-            display: flex;
-            align-items: flex-start;
-            gap: 12px;
-            padding: 20px;
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            transition: all 0.3s ease;
-        }
-
-        .info-card:hover {
-            background: rgba(255, 255, 255, 0.08);
-            transform: translateY(-2px);
-        }
-
-        .info-icon {
-            font-size: 24px;
-            flex-shrink: 0;
-            margin-top: 4px;
-        }
-
-        .info-content h5 {
-            font-size: 16px;
-            font-weight: 700;
-            color: var(--text);
-            margin-bottom: 4px;
-        }
-
-        .info-content p {
-            font-size: 14px;
-            color: var(--text);
-            margin-bottom: 4px;
-            font-weight: 600;
-        }
-
-        .info-content small {
-            font-size: 12px;
-            color: var(--text-muted);
-        }
-
-        .important-notice {
-            display: flex;
-            align-items: flex-start;
-            gap: 12px;
-            padding: 20px;
-            background: rgba(245, 158, 11, 0.1);
-            border-radius: 12px;
-            border: 1px solid rgba(245, 158, 11, 0.2);
-        }
-
-        .notice-icon {
-            font-size: 24px;
-            flex-shrink: 0;
-            margin-top: 4px;
-        }
-
-        .notice-content h5 {
-            font-size: 16px;
-            font-weight: 700;
-            color: var(--warning);
-            margin-bottom: 8px;
-        }
-
-        .notice-content p {
-            font-size: 14px;
-            color: var(--text);
-            margin: 0;
-            line-height: 1.5;
-        }
-
-        .action-buttons {
-            display: flex;
-            gap: 16px;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-
-        .btn {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 12px 24px;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 600;
-            text-decoration: none;
-            border: none;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            min-width: 160px;
-            justify-content: center;
-        }
-
-        .btn-primary {
-            background: var(--primary);
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background: var(--primary-dark);
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(59, 130, 246, 0.3);
-        }
-
-        .btn-secondary {
-            background: rgba(255, 255, 255, 0.1);
-            color: var(--text);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-
-        .btn-secondary:hover {
-            background: rgba(255, 255, 255, 0.15);
-            transform: translateY(-2px);
-        }
-
-        .btn-icon {
-            font-size: 16px;
-        }
-
-        @media (max-width: 768px) {
-            .profile-header {
-                flex-direction: column;
-                text-align: center;
-            }
-
-            .status-details {
-                grid-template-columns: 1fr;
-            }
-
-            .timeline {
-                padding-left: 0;
-            }
-
-            .timeline-step {
-                flex-direction: column;
-                text-align: center;
-            }
-
-            .timeline-connector {
-                display: none;
-            }
-
-            .action-buttons {
-                flex-direction: column;
-            }
-
-            .license-content {
-                flex-direction: column;
-            }
-
-            .score-display {
-                flex-direction: column;
-                text-align: center;
-            }
-
-            .results-grid {
-                grid-template-columns: 1fr;
-                margin-bottom: 20px;
-            }
-
-            .achievement-message {
-                margin-top: 24px;
-            }
-
-            .practical-info-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .next-steps-header {
-                flex-direction: column;
-                gap: 16px;
-                text-align: center;
-            }
-
-            .progress-indicator {
-                justify-content: center;
-            }
-
-            .user-info-section {
-                flex-direction: column;
-                text-align: center;
-                gap: 16px;
-                padding: 24px;
-                min-height: auto;
-            }
-
-            .avatar-circle-large {
-                width: 60px;
-                height: 60px;
-                font-size: 24px;
-            }
-
-            .user-name {
-                font-size: 20px;
-                line-height: 1.3;
-            }
-
-            .user-nic {
-                font-size: 14px;
-            }
-
-            .user-application-id {
-                font-size: 12px;
-            }
-        }
-    </style>
 </body>
 </html>
