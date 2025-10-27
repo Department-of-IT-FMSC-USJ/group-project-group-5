@@ -1,23 +1,23 @@
+// ═══════════════════════════════════════════════════════════════════════════════
+// ADMIN LOGIN JAVASCRIPT
+// ═══════════════════════════════════════════════════════════════════════════════
 
 document.addEventListener('DOMContentLoaded', function() {
+    // Don't redirect - allow viewing login page even if authenticated
+    // This allows logout to work properly
     
-    if (LicenseXpress.checkAdminAuth()) {
-        window.location.href = 'admin-dashboard.php';
-        return;
-    }
-
-    
+    // Initialize admin login
     initializeAdminLogin();
 });
 
 function initializeAdminLogin() {
-    
+    // Initialize form validation
     initializeFormValidation();
 
-    
+    // Initialize password toggle
     initializePasswordToggle();
 
-
+    // Initialize form submission
     initializeFormSubmission();
 }
 
@@ -61,7 +61,7 @@ function validateField(field) {
             break;
     }
 
-
+    // Update UI
     if (isValid) {
         field.classList.remove('error');
         field.classList.add('valid');
@@ -99,7 +99,7 @@ function initializeFormSubmission() {
     form.addEventListener('submit', function(e) {
         e.preventDefault();
 
-        
+        // Validate all fields
         const inputs = form.querySelectorAll('input[required]');
         let allValid = true;
 
@@ -114,18 +114,18 @@ function initializeFormSubmission() {
             return;
         }
 
-
+        // Get form data
         const formData = new FormData(form);
         const username = formData.get('username');
         const password = formData.get('password');
         const rememberMe = formData.get('rememberMe') === 'on';
 
-        
+        // Show loading state
         loginBtn.disabled = true;
         btnText.textContent = 'Signing In...';
         btnSpinner.classList.remove('hidden');
 
-        
+        // Simulate login attempt
         setTimeout(() => {
             attemptAdminLogin(username, password, rememberMe);
         }, 1500);
@@ -133,10 +133,10 @@ function initializeFormSubmission() {
 }
 
 function attemptAdminLogin(username, password, rememberMe) {
-    
+    // Check admin credentials
     const adminData = JSON.parse(localStorage.getItem('adminData') || '{}');
     
-    
+    // Default admin credentials (in production, this would be server-side)
     const defaultAdmin = {
         username: 'admin',
         password: 'admin123'
@@ -147,16 +147,16 @@ function attemptAdminLogin(username, password, rememberMe) {
         (adminData.username === username && adminData.password === password);
 
     if (isValidCredentials) {
-        
+        // Successful login
         handleSuccessfulLogin(username, rememberMe);
     } else {
-       
+        // Failed login
         handleFailedLogin();
     }
 }
 
 function handleSuccessfulLogin(username, rememberMe) {
-    
+    // Set admin authentication
     localStorage.setItem('isAdminAuthenticated', 'true');
     localStorage.setItem('adminUsername', username);
     
@@ -166,13 +166,13 @@ function handleSuccessfulLogin(username, rememberMe) {
         localStorage.setItem('adminAuthExpiry', expiryDate.toISOString());
     }
 
-    
+    // Log admin login
     logAdminActivity('login', username);
 
-    
+    // Show success message
     LicenseXpress.showToast('✅ Admin login successful!', 'success');
 
-
+    // Redirect to admin dashboard
     setTimeout(() => {
         window.location.href = 'admin-dashboard.php';
     }, 1000);
@@ -184,24 +184,24 @@ function handleFailedLogin() {
     const btnSpinner = loginBtn.querySelector('.btn-spinner');
     const form = document.getElementById('adminLoginForm');
 
-   
+    // Reset button state
     loginBtn.disabled = false;
     btnText.textContent = 'Sign In to Admin Panel';
     btnSpinner.classList.add('hidden');
 
-    
+    // Add shake animation
     form.classList.add('shake');
     setTimeout(() => {
         form.classList.remove('shake');
     }, 500);
 
-    
+    // Show error message
     LicenseXpress.showToast('❌ Invalid username or password', 'error');
 
-   
+    // Clear form
     form.reset();
     
-    
+    // Log failed attempt
     logAdminActivity('failed_login_attempt', 'unknown');
 }
 
@@ -212,11 +212,11 @@ function logAdminActivity(action, username) {
         action: action,
         username: username,
         timestamp: new Date().toISOString(),
-        ip: '127.0.0.1', 
+        ip: '127.0.0.1', // In production, get real IP
         userAgent: navigator.userAgent
     });
 
-    
+    // Keep only last 100 activities
     if (activityLog.length > 100) {
         activityLog.splice(0, activityLog.length - 100);
     }
@@ -224,7 +224,7 @@ function logAdminActivity(action, username) {
     localStorage.setItem('adminActivityLog', JSON.stringify(activityLog));
 }
 
-
+// Extend LicenseXpress with admin authentication
 if (typeof LicenseXpress === 'undefined') {
     window.LicenseXpress = {};
 }
@@ -237,7 +237,7 @@ LicenseXpress.checkAdminAuth = function() {
         return false;
     }
 
-    
+    // Check if session has expired
     if (expiryDate) {
         const now = new Date();
         const expiry = new Date(expiryDate);
@@ -270,7 +270,7 @@ LicenseXpress.adminLogout = function() {
     localStorage.removeItem('adminAuthExpiry');
     localStorage.removeItem('adminLoginTime');
     
-    
+    // Log logout
     logAdminActivity('logout', 'admin');
     
     window.location.href = 'admin-login.php';
